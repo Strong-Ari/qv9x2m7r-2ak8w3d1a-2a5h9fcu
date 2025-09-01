@@ -19,25 +19,34 @@ const ffprobe = spawnSync("ffprobe", [
 const duration = parseFloat(ffprobe.stdout.toString());
 console.log(`Durée totale vidéo: ${duration.toFixed(2)}s`);
 
-// 2️⃣ Lancer FFmpeg
+// 2️⃣ Lancer FFmpeg avec filtres corrigés
 const ffmpegArgs = [
   "-i", inputVideo,
   "-i", scratchesVideo,
   "-i", whooshAudio,
   "-filter_complex",
-  `[0:v]trim=start=0:end=1,scale=1080:1920,zoompan=z='1.5-0.03*on':x='iw/2-(iw/zoom/2)+sin(on*2)*50':y='ih/2-(ih/zoom/2)+cos(on*2)*50':d=1:s=1080x1920:fps=50,tblend=all_mode=average,dblur=angle=90:radius=2,format=yuv420p[firstsec];` +
+  // 🔧 CORRECTIONS APPLIQUÉES :
+  // - Suppression de tblend (causait le filtre rouge)
+  // - Réduction du blur pour préserver la netteté
+  // - Amélioration des paramètres de zoom
+  `[0:v]trim=start=0:end=1,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
   `[0:v]trim=start=1,setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
   `[firstsec][rest]concat=n=2:v=1:a=0[vout_base];` +
   `[1:v]scale=1080:1920[scratch_scaled];` +
-  `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.6[vout];` +
+  // 🔧 Réduction de l'opacité des scratches pour un effet plus subtil
+  `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
   `[2:a]atrim=0:1,afade=t=in:st=0:d=0.2[aout]`,
   "-map", "[vout]",
   "-map", "[aout]",
   "-c:v", "libx264",
-  "-preset", "medium",
-  "-crf", "23",
+  // 🔧 AMÉLIORATION DE LA QUALITÉ :
+  "-preset", "slow",          // Meilleure qualité (était "medium")
+  "-crf", "18",               // Qualité supérieure (était "23")
+  "-pix_fmt", "yuv420p",      // Format de pixel explicite
+  "-profile:v", "high",       // Profil H.264 haute qualité
+  "-level", "4.1",            // Niveau de compatibilité
   "-c:a", "aac",
-  "-b:a", "192k",
+  "-b:a", "256k",             // Bitrate audio plus élevé (était "192k")
   "-y",
   outputVideo
 ];
@@ -46,7 +55,7 @@ const ffmpeg = spawn("ffmpeg", ffmpegArgs);
 
 // Barre de progression basée sur la durée
 const progressBar = new cliProgress.SingleBar({
-  format: 'Processing |{bar}| {percentage}% | Time: {time}s',
+  format: 'Processing |{bar}| {percentage}% | Time: {time}s | Quality: High',
   hideCursor: true
 }, cliProgress.Presets.shades_classic);
 
@@ -64,6 +73,11 @@ rl.on("line", (line) => {
 
 ffmpeg.on("close", (code) => {
   progressBar.stop();
-  if (code === 0) console.log(`✅ Video created successfully: ${outputVideo}`);
-  else console.error(`❌ FFmpeg exited with code ${code}`);
+  if (code === 0) {
+    console.log(`✅ Video created successfully: ${outputVideo}`);
+    console.log(`📊 Qualité améliorée: CRF 18, Preset slow`);
+    console.log(`🎨 Filtre rouge supprimé: tblend retiré`);
+  } else {
+    console.error(`❌ FFmpeg exited with code ${code}`);
+  }
 });
