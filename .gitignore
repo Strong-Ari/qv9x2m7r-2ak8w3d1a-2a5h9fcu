@@ -43,8 +43,14 @@ cookies.meta.json
 
 screenshots/
 
-public/
+public/audio-info.json
 public/ayanokoji-voice.wav
 public/ayanokoji-voice.mp3
+public/selected-clips.json
+public/ost.mp3
+
+models/
+subs/ayanokoji-voice.json
+
 output.mp4
 output_video.mp4
