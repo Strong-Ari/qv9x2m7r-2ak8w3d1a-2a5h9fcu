@@ -29,10 +29,13 @@ const ffmpegArgs = [
   // - Suppression de tblend (causait le filtre rouge)
   // - Réduction du blur pour préserver la netteté
   // - Amélioration des paramètres de zoom
-  `[0:v]trim=start=0:end=1,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
-  `[0:v]trim=start=1,setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
+  `[0:v]split[v1][v2];` +
+  // Première seconde avec effet zoom
+  `[v1]trim=start=0:end=1,setpts=PTS-STARTPTS,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
+  // Reste de la vidéo sans modification de durée
+  `[v2]trim=start=1:end=${duration},setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
   `[firstsec][rest]concat=n=2:v=1:a=0[vout_base];` +
-  `[1:v]scale=1080:1920[scratch_scaled];` +
+  `[1:v]scale=1080:1920,trim=0:${duration}[scratch_scaled];` +
   // 🔧 Réduction de l'opacité des scratches pour un effet plus subtil
   `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
   `[2:a]atrim=0:1,afade=t=in:st=0:d=0.2[aout]`,
