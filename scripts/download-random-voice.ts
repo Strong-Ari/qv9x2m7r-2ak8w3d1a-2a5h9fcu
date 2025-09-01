@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
+import { getAudioDurationInSeconds } from 'get-audio-duration';
 
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 const apiKey = process.env.CLOUDINARY_API_KEY;
@@ -9,6 +10,7 @@ const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
 const localAudioWavPath = path.join(process.cwd(), "public", "ayanokoji-voice.wav");
 const localAudioMp3Path = path.join(process.cwd(), "public", "ayanokoji-voice.mp3");
+const audioDurationJsonPath = path.join(process.cwd(), "public", "audio-info.json");
 
 async function main() {
   // Vérifier si les variables Cloudinary sont configurées
@@ -144,6 +146,25 @@ async function main() {
   const destPath = ext === ".mp3" ? localAudioMp3Path : localAudioWavPath;
   fs.writeFileSync(destPath, new Uint8Array(buffer));
   console.log(`✅ Musique téléchargée → ${path.basename(destPath)}`);
+
+  // Obtenir la durée de l'audio
+  try {
+    const duration = await getAudioDurationInSeconds(destPath);
+    const audioInfo = {
+      filename: path.basename(destPath),
+      duration: duration,
+      durationFormatted: `${Math.floor(duration / 60)}:${Math.floor(duration % 60).toString().padStart(2, '0')}`,
+      cloudinaryId: randomAudio.public_id,
+      format: randomAudio.format,
+      generatedAt: new Date().toISOString()
+    };
+
+    // Sauvegarder les informations dans un fichier JSON
+    fs.writeFileSync(audioDurationJsonPath, JSON.stringify(audioInfo, null, 2));
+    console.log(`📝 Informations audio sauvegardées dans ${path.basename(audioDurationJsonPath)}`);
+  } catch (error) {
+    console.error("❌ Erreur lors de l'obtention de la durée de l'audio:", error);
+  }
 }
 
 main().catch((err) => {
