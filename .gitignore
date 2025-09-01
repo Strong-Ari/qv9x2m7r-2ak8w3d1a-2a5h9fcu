@@ -48,9 +48,12 @@ public/ayanokoji-voice.wav
 public/ayanokoji-voice.mp3
 public/selected-clips.json
 public/ost.mp3
+public/ffmpeg-command.json
 
 models/
 subs/ayanokoji-voice.json
 
 output.mp4
 output_video.mp4
+output_pre_final_zoom.mp4
+output_final.mp4

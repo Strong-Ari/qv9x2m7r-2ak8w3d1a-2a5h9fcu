@@ -8,7 +8,10 @@
     "concat-clips": "ts-node scripts/concat-clips-with-transition.ts",
     "ffmpeg-tiktok-effects": "ts-node scripts/ffmpeg_tiktok_effects.ts",
     "download-random-ost": "ts-node scripts/download-random-ost.ts",
-    "generate-subs": "ts-node scripts/generate-subs.ts"
+    "generate-subs": "ts-node scripts/generate-subs.ts",
+    "generate-drawtext": "ts-node scripts/generate-drawtext.ts",
+    "add-subtitles": "ts-node scripts/execute-ffmpeg.ts",
+    "mix-audio": "ts-node scripts/mix-audio.ts"
   },
   "dependencies": {
     "cli-progress": "^3.12.0",
