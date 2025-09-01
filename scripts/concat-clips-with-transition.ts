@@ -16,6 +16,8 @@ interface Clip {
 }
 
 interface SelectedClips {
+    audioId: string;
+    audioDuration: number;
     clips: Clip[];
 }
 
@@ -62,20 +64,23 @@ async function main() {
             filterComplex.push(`${overlayChain.join('')}overlay[bg${i}]`);
             overlayChain.splice(0, overlayChain.length, `[bg${i}]`);
         } else {
-            filterComplex.push(`${overlayChain.join('')}overlay`);
+            filterComplex.push(`${overlayChain.join('')}overlay[final]`);
         }
     });
+
+    // Add duration trim to match audio duration exactly
+    filterComplex.push(`[final]trim=0:${selectedClips.audioDuration}[trimmed]`);
 
     // Build ffmpeg command
     const inputFiles = clips.map(clip => `-i "${clip.url}"`).join(' ');
     const outputPath = join(process.cwd(), 'output.mp4');
-    const command = `ffmpeg ${inputFiles} -filter_complex "${filterComplex.join(';')}" -c:v libx264 -pix_fmt yuv420p "${outputPath}"`;
+    const command = `ffmpeg ${inputFiles} -filter_complex "${filterComplex.join(';')}" -map "[trimmed]" -c:v libx264 -pix_fmt yuv420p "${outputPath}"`;
 
     // Execute ffmpeg
     console.log('Concatenating videos with transitions...');
     console.log('FFmpeg command:', command);
     await execAsync(command);
-    console.log('Video created successfully!');
+    console.log(`Video created successfully with exact duration of ${selectedClips.audioDuration} seconds!`);
 }
 
 main().catch(console.error);
