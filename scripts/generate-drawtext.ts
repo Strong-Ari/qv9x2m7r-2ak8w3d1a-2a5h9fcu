@@ -41,7 +41,7 @@ function cleanAndEscapeText(text: string): string {
     // Nettoyer les caractères problématiques AVANT l'échappement
     .replace(/[«»]/g, '')            // Supprimer les guillemets français
     .replace(/"/g, '')               // Supprimer les guillemets doubles
-    .replace(/'/g, "'")              // Apostrophe droite → apostrophe typographique
+    // Les apostrophes typographiques ' (\u2019) n'ont pas besoin d'être échappées dans FFmpeg
     .replace(/…/g, "...")            // Points de suspension
     .replace(/–/g, "-")              // Tiret moyen → tiret normal
     .replace(/—/g, "-")              // Tiret long → tiret normal
@@ -49,7 +49,8 @@ function cleanAndEscapeText(text: string): string {
     // Corriger les espaces autour des apostrophes et tirets
     .replace(/\s+'/g, "'")           // Supprimer espace avant apostrophe
     .replace(/'\s+/g, "'")           // Supprimer espace après apostrophe
-    .replace(/\s+-\s+/g, "-")        // Coller les mots avec tirets (ex: "est -elle" → "est-elle")
+    .replace(/\s+-\s*/g, "-")        // Coller les mots avec tirets (ex: "est -elle" → "est-elle")
+    .replace(/\s*-\s+/g, "-")        // Aussi gérer "mot- elle" → "mot-elle"
     // Ajouter espaces avant ponctuation forte (français)
     .replace(/([a-zA-Zàâäéèêëïîôöùûüÿç])([!?])/, '$1 $2')  // Espace avant ! et ?
     .replace(/\s+/g, " ")            // Normaliser les espaces multiples
