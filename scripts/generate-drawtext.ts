@@ -46,9 +46,11 @@ function cleanAndEscapeText(text: string): string {
     .replace(/–/g, "-")              // Tiret moyen → tiret normal
     .replace(/—/g, "-")              // Tiret long → tiret normal
     .replace(/\u00A0/g, " ")         // Espace insécable → espace normal
-    // Corriger les espaces autour des apostrophes et tirets
-    .replace(/\s+'/g, "'")           // Supprimer espace avant apostrophe
-    .replace(/'\s+/g, "'")           // Supprimer espace après apostrophe
+    // Corriger les espaces autour des apostrophes et tirets - ORDRE IMPORTANT
+    .replace(/\s+'/g, "'")           // Supprimer TOUS les espaces avant apostrophe normale
+    .replace(/\s+'/g, "'")           // Supprimer TOUS les espaces avant apostrophe typographique
+    .replace(/'\s+/g, "'")           // Supprimer espace après apostrophe normale
+    .replace(/'\s+/g, "'")           // Supprimer espace après apostrophe typographique
     .replace(/\s+-\s*/g, "-")        // Coller les mots avec tirets (ex: "est -elle" → "est-elle")
     .replace(/\s*-\s+/g, "-")        // Aussi gérer "mot- elle" → "mot-elle"
     // Ajouter espaces avant ponctuation forte (français)
@@ -214,13 +216,13 @@ const drawFilters = wordGroups.map((group, groupIndex) => {
 
   const firstWord = group[0];
   const lastWord = group[group.length - 1];
-  const groupText = group.map(w => w.word).join(' ');
+  let groupText = group.map(w => w.word).join(' ');
 
   const start = firstWord.start.toFixed(2);
   const end = lastWord.end.toFixed(2);
 
   // Nettoyer et échapper le texte
-  const cleanText = cleanAndEscapeText(groupText);
+  let cleanText = cleanAndEscapeText(groupText);
 
   // Vérifier que le texte n'est pas vide après nettoyage
   if (!cleanText) return '';
