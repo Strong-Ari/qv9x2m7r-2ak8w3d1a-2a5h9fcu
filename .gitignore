@@ -57,3 +57,7 @@ output.mp4
 output_video.mp4
 output_pre_final.mp4
 output_final.mp4
+
+cookies.json
+cookies.meta.json
+screenshots/

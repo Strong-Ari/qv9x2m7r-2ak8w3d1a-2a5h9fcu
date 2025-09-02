@@ -9,9 +9,14 @@
     "ffmpeg-tiktok-effects": "ts-node scripts/ffmpeg_tiktok_effects.ts",
     "download-random-ost": "ts-node scripts/download-random-ost.ts",
     "generate-subs": "ts-node scripts/generate-subs.ts",
+    "clean-subs": "ts-node scripts/clean-json.ts",
     "generate-drawtext": "ts-node scripts/generate-drawtext.ts",
     "add-subtitles": "ts-node scripts/execute-ffmpeg.ts",
-    "mix-audio": "ts-node scripts/mix-audio.ts"
+    "mix-audio": "ts-node scripts/mix-audio.ts",
+    "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
+    "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
+
+    "run-all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
   },
   "dependencies": {
     "cli-progress": "^3.12.0",
@@ -21,7 +26,11 @@
     "get-video-duration": "^4.1.0",
     "ts-node": "^10.9.1",
     "typescript": "^5.2.2",
-    "whisper.cpp": "^1.0.3"
+    "whisper.cpp": "^1.0.3",
+    "patchright": "^1.52.5",
+    "playwright": "^1.54.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   },
   "type": "commonjs",
   "devDependencies": {
