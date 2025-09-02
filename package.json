@@ -8,7 +8,6 @@
     "concat-clips": "ts-node scripts/concat-clips-with-transition.ts",
     "ffmpeg-tiktok-effects": "ts-node scripts/ffmpeg_tiktok_effects.ts",
     "download-random-ost": "ts-node scripts/download-random-ost.ts",
-    "download-random-voice": "ts-node scripts/download-random-voice.ts",
     "generate-subs": "ts-node scripts/generate-subs.ts",
     "clean-subs": "ts-node scripts/clean-json.ts",
     "generate-drawtext": "ts-node scripts/generate-drawtext.ts",
@@ -17,7 +16,7 @@
     "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
     "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
 
-    "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run download-random-voice && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
+    "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
   },
   "dependencies": {
     "cli-progress": "^3.12.0",
