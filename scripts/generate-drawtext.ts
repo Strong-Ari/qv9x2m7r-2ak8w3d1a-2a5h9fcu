@@ -3,7 +3,7 @@ import path from "path";
 
 // 🔹 Config
 const jsonPath = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\subs\\ayanokoji-voice.json`;
-const fontPath = `C:\\Windows\\Fonts\\arial.ttf`;
+const fontPath = `C:\\Windows\\Fonts\\Impact.ttf`;
 const videoInput = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\output_video.mp4`;
 const videoOutput = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\output_pre_final.mp4`;
 
