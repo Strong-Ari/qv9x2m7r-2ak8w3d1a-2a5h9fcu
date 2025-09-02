@@ -1,11 +1,11 @@
 import fs from "fs";
 import path from "path";
 
-// 🔹 Config
-const jsonPath = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\subs\\ayanokoji-voice.json`;
-const fontPath = `C:\\Windows\\Fonts\\Impact.ttf`;
-const videoInput = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\output_video.mp4`;
-const videoOutput = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\output_pre_final.mp4`;
+// 🔹 Config - chemins relatifs
+const jsonPath = path.join(process.cwd(), "subs", "ayanokoji-voice.json");
+const fontPath = `C:\\Windows\\Fonts\\Impact.ttf`; // Chemin système Windows pour la police
+const videoInput = path.join(process.cwd(), "output_video.mp4");
+const videoOutput = path.join(process.cwd(), "output_pre_final.mp4");
 
 // 🔹 Interfaces
 interface Word {
@@ -192,6 +192,29 @@ function smartGroupWords(words: Word[], minDuration = 0.3, maxWordsPerGroup = 5)
 
   return finalGroups;
 }
+
+// � Vérifrications des fichiers requis
+if (!fs.existsSync(jsonPath)) {
+  console.error(`❌ Fichier JSON non trouvé : ${jsonPath}`);
+  console.log("💡 Assurez-vous d'avoir exécuté generate-subs.ts d'abord");
+  process.exit(1);
+}
+
+if (!fs.existsSync(videoInput)) {
+  console.error(`❌ Fichier vidéo d'entrée non trouvé : ${videoInput}`);
+  console.log("💡 Assurez-vous que le fichier output_video.mp4 existe");
+  process.exit(1);
+}
+
+if (!fs.existsSync(fontPath)) {
+  console.error(`❌ Police non trouvée : ${fontPath}`);
+  console.log("💡 Vérifiez que la police Impact est installée sur Windows");
+  process.exit(1);
+}
+
+console.log(`📄 Fichier JSON trouvé : ${jsonPath}`);
+console.log(`🎬 Fichier vidéo trouvé : ${videoInput}`);
+console.log(`🔤 Police trouvée : ${fontPath}`);
 
 // 🔹 Lecture et parsing du JSON avec gestion d'erreurs
 let transcriptionData: TranscriptionData;

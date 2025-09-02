@@ -2,10 +2,10 @@ import { exec } from "child_process";
 import path from "path";
 import fs from "fs";
 
-// 📂 chemins
-const audioPath = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\public\\ayanokoji-voice.mp3`;
-const outputDir = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\subs`;
-const whisperExe = `C:\\Users\\balwa\\OneDrive\\Bureau\\anime-automation\\models\\Faster-Whisper-XXL_r245.4_windows\\Faster-Whisper-XXL\\faster-whisper-xxl.exe`;
+// 📂 chemins relatifs pour éviter les problèmes de synchronisation
+const audioPath = path.join(process.cwd(), "public", "ayanokoji-voice.mp3");
+const outputDir = path.join(process.cwd(), "subs");
+const whisperExe = path.join(process.cwd(), "models", "Faster-Whisper-XXL_r245.4_windows", "Faster-Whisper-XXL", "faster-whisper-xxl.exe");
 
 // 🔧 Fonction pour nettoyer les mots dans le JSON
 function cleanTranscriptionData(jsonPath: string) {
@@ -52,6 +52,15 @@ function cleanTranscriptionData(jsonPath: string) {
     console.error("❌ Erreur lors du nettoyage du JSON:", error);
   }
 }
+
+// � Vérimfier que le fichier audio existe
+if (!fs.existsSync(audioPath)) {
+  console.error(`❌ Fichier audio non trouvé : ${audioPath}`);
+  console.log("💡 Assurez-vous d'avoir exécuté download-random-voice.ts d'abord");
+  process.exit(1);
+}
+
+console.log(`🎵 Fichier audio trouvé : ${audioPath}`);
 
 // 🖥️ commande whisper
 const command = `
