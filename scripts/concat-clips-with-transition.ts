@@ -116,6 +116,19 @@ async function main() {
             readFileSync(join(process.cwd(), 'public', 'selected-clips.json'), 'utf-8')
         );
 
+        // Read audio info for correct duration
+        const audioInfo = JSON.parse(
+            readFileSync(join(process.cwd(), 'public', 'audio-info.json'), 'utf-8')
+        );
+
+        // Use audio duration from audio-info.json instead of selected-clips.json
+        const audioDuration = audioInfo.duration;
+        console.log(`🎵 Durée audio depuis audio-info.json: ${audioDuration}s`);
+        console.log(`📊 Durée dans selected-clips.json: ${selectedClips.audioDuration}s (ignorée)`);
+
+        // Override the duration
+        selectedClips.audioDuration = audioDuration;
+
         // Prepare clips data with HIGH QUALITY transformed URLs
         console.log('📹 Préparation des clips avec URLs haute qualité...');
         const clips = selectedClips.clips.map((clip, index) => {
@@ -129,7 +142,7 @@ async function main() {
 
         // 🗂️ Créer les fichiers temporaires pour éviter "ligne de commande trop longue"
         console.log('📁 Création des fichiers de configuration temporaires...');
-        filterFile = createFilterFile(clips, selectedClips.audioDuration);
+        filterFile = createFilterFile(clips, audioDuration);
         console.log(`   Filtres: ${filterFile}`);
 
         // 🚀 Build ffmpeg command with files instead of long command line
@@ -153,7 +166,7 @@ async function main() {
         // Execute ffmpeg with REAL-TIME progress tracking
         console.log('🎵 Concaténation des vidéos avec transitions haute qualité...');
         console.log('⚙️ Paramètres de qualité: CRF 16, Preset slow, Profil high');
-        console.log(`📊 Durée totale: ${selectedClips.audioDuration}s`);
+        console.log(`📊 Durée totale: ${audioDuration}s`);
         console.log('🔧 Utilisation de fichiers temporaires pour éviter les limitations de ligne de commande');
 
         const startTime = Date.now();
@@ -167,9 +180,9 @@ async function main() {
         }, cliProgress.Presets.shades_classic);
 
         // Démarrer la barre de progression
-        progressBar.start(selectedClips.audioDuration, 0, {
+        progressBar.start(audioDuration, 0, {
             time: '0.0',
-            total: selectedClips.audioDuration.toFixed(1),
+            total: audioDuration.toFixed(1),
             speed: '0.0',
             eta: '...'
         });
@@ -211,14 +224,14 @@ async function main() {
                     const speed = speedMatch ? parseFloat(speedMatch[1]) : 0;
 
                     // Calcul ETA
-                    const remainingTime = selectedClips.audioDuration - currentTime;
+                    const remainingTime = audioDuration - currentTime;
                     const eta = speed > 0 ? Math.round(remainingTime / speed) : 0;
 
                     // Mise à jour de la barre
-                    const clampedTime = Math.min(currentTime, selectedClips.audioDuration);
+                    const clampedTime = Math.min(currentTime, audioDuration);
                     progressBar.update(clampedTime, {
                         time: clampedTime.toFixed(1),
-                        total: selectedClips.audioDuration.toFixed(1),
+                        total: audioDuration.toFixed(1),
                         speed: speed.toFixed(2),
                         eta: eta > 0 ? eta.toString() : '...'
                     });
@@ -236,7 +249,7 @@ async function main() {
                     console.log(`📁 Fichier de sortie: ${outputPath}`);
                     console.log(`🎯 Qualité: CRF 16 (Très haute qualité)`);
                     console.log(`📏 Résolution: ${WIDTH}x${HEIGHT} (TikTok optimisé)`);
-                    console.log(`⏱️ Durée exacte: ${selectedClips.audioDuration}s`);
+                    console.log(`⏱️ Durée exacte: ${audioDuration}s`);
                     resolve();
                 } else {
                     console.error(`\n❌ FFmpeg a échoué avec le code: ${code}`);

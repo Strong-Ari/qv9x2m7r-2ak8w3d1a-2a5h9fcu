@@ -22,9 +22,9 @@ class FFmpegAudioMixer {
   constructor(config: AudioMixConfig) {
     this.config = {
       voiceVolume: 1.5,
-      musicVolume: 0.3,
-      originalAudioWeight: 0.2,
-      mixedAudioWeight: 1,
+      musicVolume: 0.8,
+      originalAudioWeight: 0.8,
+      mixedAudioWeight: 1.2,
       ...config
     };
   }
