@@ -41,11 +41,18 @@ function cleanAndEscapeText(text: string): string {
     // Nettoyer les caractères problématiques AVANT l'échappement
     .replace(/[«»]/g, '')            // Supprimer les guillemets français
     .replace(/"/g, '')               // Supprimer les guillemets doubles
-    .replace(/'/g, "'")              // Apostrophe courbe → apostrophe droite
+    .replace(/'/g, "'")              // Apostrophe droite → apostrophe typographique
     .replace(/…/g, "...")            // Points de suspension
     .replace(/–/g, "-")              // Tiret moyen → tiret normal
     .replace(/—/g, "-")              // Tiret long → tiret normal
     .replace(/\u00A0/g, " ")         // Espace insécable → espace normal
+    // Corriger les espaces autour des apostrophes et tirets
+    .replace(/\s+'/g, "'")           // Supprimer espace avant apostrophe
+    .replace(/'\s+/g, "'")           // Supprimer espace après apostrophe
+    .replace(/\s+-\s+/g, "-")        // Coller les mots avec tirets (ex: "est -elle" → "est-elle")
+    // Ajouter espaces avant ponctuation forte (français)
+    .replace(/([a-zA-Zàâäéèêëïîôöùûüÿç])([!?])/, '$1 $2')  // Espace avant ! et ?
+    .replace(/\s+/g, " ")            // Normaliser les espaces multiples
     .trim()
     // Échapper pour FFmpeg - ORDRE IMPORTANT !
     .replace(/\\/g, "\\\\")          // Backslash (en premier)
@@ -56,7 +63,7 @@ function cleanAndEscapeText(text: string): string {
     .replace(/\(/g, "\\(")           // Parenthèses
     .replace(/\)/g, "\\)")           // Parenthèses
     .replace(/;/g, "\\;")            // Point-virgule
-    .replace(/%/g, "\\%");           // Pourcentage
+    .replace(/%/g, "\\%");           // Pourcentage (PAS d'échappement d'apostrophe !)
 }
 
 // 🔹 Fonction pour identifier les mots clés à surligner
@@ -68,7 +75,51 @@ function isKeyword(word: string): boolean {
   return keywords.some(keyword => word.toLowerCase().includes(keyword.toLowerCase()));
 }
 
-// 🔹 Fonction pour grouper les mots courts avec les suivants
+// 🔹 Fonction pour détecter si un mot se termine par une ponctuation forte
+function endsWithStrongPunctuation(text: string): boolean {
+  return /[.!?]$/.test(text.trim());
+}
+
+// 🔹 Fonction pour détecter si un mot est seulement de la ponctuation
+function isOnlyPunctuation(text: string): boolean {
+  return /^[.!?]+$/.test(text.trim());
+}
+
+// 🔹 Fonction pour vérifier si un texte dépasse la limite de caractères
+function exceedsCharLimit(text: string, limit: number = 27): boolean {
+  return text.length > limit;
+}
+
+// 🔹 Fonction pour diviser un groupe en sous-groupes respectant la limite de caractères
+function splitGroupByCharLimit(group: Word[], charLimit: number = 27): Word[][] {
+  const subGroups: Word[][] = [];
+  let currentSubGroup: Word[] = [];
+  let currentLength = 0;
+
+  for (const word of group) {
+    const wordLength = word.word.length;
+    const spaceLength = currentSubGroup.length > 0 ? 1 : 0; // Espace entre mots
+
+    // Si ajouter ce mot dépasse la limite, fermer le sous-groupe actuel
+    if (currentLength + spaceLength + wordLength > charLimit && currentSubGroup.length > 0) {
+      subGroups.push([...currentSubGroup]);
+      currentSubGroup = [word];
+      currentLength = wordLength;
+    } else {
+      currentSubGroup.push(word);
+      currentLength += spaceLength + wordLength;
+    }
+  }
+
+  // Ajouter le dernier sous-groupe s'il n'est pas vide
+  if (currentSubGroup.length > 0) {
+    subGroups.push(currentSubGroup);
+  }
+
+  return subGroups;
+}
+
+// 🔹 Fonction pour grouper les mots avec les règles françaises
 function smartGroupWords(words: Word[], minDuration = 0.3, maxWordsPerGroup = 5): Word[][] {
   const groups: Word[][] = [];
   let currentGroup: Word[] = [];
@@ -83,14 +134,36 @@ function smartGroupWords(words: Word[], minDuration = 0.3, maxWordsPerGroup = 5)
     // Ignorer les mots vides
     if (!word.word) continue;
 
+    // Si le mot précédent se termine par une ponctuation forte et que le mot actuel n'est pas de la ponctuation seule
+    if (currentGroup.length > 0) {
+      const lastWordInGroup = currentGroup[currentGroup.length - 1];
+      const lastWordText = lastWordInGroup.word.trim();
+
+      // Si le dernier mot se termine par une ponctuation forte ET le mot actuel n'est pas juste de la ponctuation
+      if (endsWithStrongPunctuation(lastWordText) && !isOnlyPunctuation(word.word)) {
+        // Fermer le groupe actuel
+        groups.push([...currentGroup]);
+        currentGroup = [];
+      }
+    }
+
+    // Si le mot actuel est seulement de la ponctuation, l'attacher au groupe précédent avec un espace
+    if (isOnlyPunctuation(word.word) && currentGroup.length > 0) {
+      // Fusionner avec le dernier mot du groupe en ajoutant un espace
+      const lastWord = currentGroup[currentGroup.length - 1];
+      lastWord.word = lastWord.word + ' ' + word.word;
+      lastWord.end = word.end; // Étendre la durée
+      continue;
+    }
+
     currentGroup.push(word);
 
     // Conditions pour fermer le groupe :
-    // 1. Le mot actuel a une durée suffisante ET le groupe n'est pas vide
+    // 1. Le mot actuel se termine par une ponctuation forte
     // 2. Le groupe a atteint la taille maximale
     // 3. C'est le dernier mot
     const shouldCloseGroup =
-      (duration >= minDuration && currentGroup.length > 0) ||
+      endsWithStrongPunctuation(word.word) ||
       currentGroup.length >= maxWordsPerGroup ||
       i === words.length - 1;
 
@@ -102,7 +175,19 @@ function smartGroupWords(words: Word[], minDuration = 0.3, maxWordsPerGroup = 5)
     }
   }
 
-  return groups;
+  // Diviser les groupes qui dépassent la limite de caractères
+  const finalGroups: Word[][] = [];
+  for (const group of groups) {
+    const groupText = group.map(w => w.word).join(' ');
+    if (exceedsCharLimit(groupText, 27)) {
+      const subGroups = splitGroupByCharLimit(group, 27);
+      finalGroups.push(...subGroups);
+    } else {
+      finalGroups.push(group);
+    }
+  }
+
+  return finalGroups;
 }
 
 // 🔹 Lecture et parsing du JSON avec gestion d'erreurs
