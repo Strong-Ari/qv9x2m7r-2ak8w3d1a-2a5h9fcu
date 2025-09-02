@@ -293,8 +293,11 @@ if (allFilters.length === 0) {
   process.exit(1);
 }
 
-// 🔹 Commande FFmpeg avec overlay pour l'effet moderne
-const ffmpegCommand = `ffmpeg -i "${videoInput}" -vf "${filterComplex}" -c:a copy "${videoOutput}"`;
+// 🔹 Commande FFmpeg avec paramètres de qualité maximale pour préserver la qualité
+const ffmpegCommand = `ffmpeg -i "${videoInput}" -vf "${filterComplex}" ` +
+  `-c:v libx264 -preset veryslow -crf 12 -profile:v high -level 4.2 ` +
+  `-maxrate 12000k -bufsize 24000k -me_method umh -subq 10 -trellis 2 ` +
+  `-pix_fmt yuv420p -movflags +faststart -c:a copy "${videoOutput}"`;
 
 console.log("🎬 Commande FFmpeg générée (style moderne) :\n");
 console.log(ffmpegCommand);
@@ -333,7 +336,10 @@ const individualWordFilters = allWords
   })
   .filter(filter => filter !== '');
 
-const alternativeCommand = `ffmpeg -i "${videoInput}" -vf "${individualWordFilters.join(",")}" -c:a copy "${videoOutput.replace('.mp4', '_individual.mp4')}"`;
+const alternativeCommand = `ffmpeg -i "${videoInput}" -vf "${individualWordFilters.join(",")}" ` +
+  `-c:v libx264 -preset veryslow -crf 12 -profile:v high -level 4.2 ` +
+  `-maxrate 12000k -bufsize 24000k -me_method umh -subq 10 -trellis 2 ` +
+  `-pix_fmt yuv420p -movflags +faststart -c:a copy "${videoOutput.replace('.mp4', '_individual.mp4')}"`;
 console.log(alternativeCommand);
 
 // 🔹 Export des commandes

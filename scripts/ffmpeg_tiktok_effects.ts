@@ -42,14 +42,19 @@ const ffmpegArgs = [
   "-map", "[vout]",
   "-map", "[aout]",
   "-c:v", "libx264",
-  // 🔧 AMÉLIORATION DE LA QUALITÉ :
-  "-preset", "slow",          // Meilleure qualité (était "medium")
-  "-crf", "18",               // Qualité supérieure (était "23")
-  "-pix_fmt", "yuv420p",      // Format de pixel explicite
-  "-profile:v", "high",       // Profil H.264 haute qualité
-  "-level", "4.1",            // Niveau de compatibilité
+  // 🔧 AMÉLIORATION DE LA QUALITÉ MAXIMALE :
+  "-preset", "veryslow",      // Qualité maximale
+  "-crf", "12",               // Qualité très élevée (compatible avec concat)
+  "-pix_fmt", "yuv420p",
+  "-profile:v", "high",
+  "-level", "4.2",
+  "-maxrate", "12000k",       // Bitrate élevé pour préserver la qualité
+  "-bufsize", "24000k",
+  "-me_method", "umh",        // Meilleure estimation de mouvement
+  "-subq", "10",              // Qualité sous-pixel maximale
+  "-trellis", "2",            // Optimisation quantification
   "-c:a", "aac",
-  "-b:a", "256k",             // Bitrate audio plus élevé (était "192k")
+  "-b:a", "320k",             // Bitrate audio maximal
   "-y",
   outputVideo
 ];

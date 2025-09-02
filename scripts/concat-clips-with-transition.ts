@@ -34,20 +34,19 @@ function getHighQualityParams(): string[] {
         '-c:v', 'libx264',
         '-profile:v', 'high',
         '-level', '4.2',
-        '-crf', '16',
-        '-preset', 'slow',
+        '-crf', '12',  // Qualité encore plus élevée
+        '-preset', 'veryslow',  // Meilleure compression
         '-pix_fmt', 'yuv420p',
-        '-maxrate', '8000k',
-        '-bufsize', '16000k',
+        '-maxrate', '12000k',  // Bitrate plus élevé
+        '-bufsize', '24000k',
         '-keyint_min', '24',
         '-g', '48',
         '-me_method', 'umh',
-        '-subq', '8',
+        '-subq', '10',  // Qualité maximale
         '-trellis', '2',
         '-flags', '+cgop+mv4',
         '-threads', '0',
-        '-movflags', '+faststart',
-        '-strict', 'experimental'
+        '-movflags', '+faststart'
     ];
 }
 
