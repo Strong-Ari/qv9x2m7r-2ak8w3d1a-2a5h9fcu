@@ -38,18 +38,17 @@ interface TranscriptionData {
 // 🔹 Fonction pour nettoyer et échapper le texte
 function cleanAndEscapeText(text: string): string {
   return text
-    // Nettoyer les caractères problématiques
-    .replace(/[«»]/g, '"')           // Guillemets français → guillemets normaux
+    // Nettoyer les caractères problématiques AVANT l'échappement
+    .replace(/[«»]/g, '')            // Supprimer les guillemets français
+    .replace(/"/g, '')               // Supprimer les guillemets doubles
     .replace(/'/g, "'")              // Apostrophe courbe → apostrophe droite
     .replace(/…/g, "...")            // Points de suspension
     .replace(/–/g, "-")              // Tiret moyen → tiret normal
     .replace(/—/g, "-")              // Tiret long → tiret normal
     .replace(/\u00A0/g, " ")         // Espace insécable → espace normal
     .trim()
-    // Échapper pour FFmpeg
-    .replace(/\\/g, "\\\\")          // Backslash
-    .replace(/'/g, "\\'")            // Apostrophe
-    .replace(/"/g, '\\"')            // Guillemets
+    // Échapper pour FFmpeg - ORDRE IMPORTANT !
+    .replace(/\\/g, "\\\\")          // Backslash (en premier)
     .replace(/:/g, "\\:")            // Deux-points
     .replace(/,/g, "\\,")            // Virgule
     .replace(/\[/g, "\\[")           // Crochets
@@ -244,7 +243,7 @@ const exportData = {
   // createdAt: new Date().toISOString()
 };
 
-const commandPath = path.join(publicDir, 'ffmpeg-commands.json');
+const commandPath = path.join(publicDir, 'ffmpeg-command.json');
 fs.writeFileSync(commandPath, JSON.stringify(exportData, null, 2), 'utf8');
 console.log(`✅ Commandes exportées dans : ${commandPath}`);
 

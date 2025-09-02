@@ -196,14 +196,18 @@ class BatchFFmpegProcessor {
 
       // Échapper correctement le texte pour FFmpeg
       const escapedText = cleanText
-        .replace(/\\/g, "\\\\")       // Échapper les backslashes
-        .replace(/'/g, "\\'")         // Échapper les apostrophes
+        .replace(/[«»]/g, '')         // Supprimer les guillemets français
+        .replace(/"/g, '')            // Supprimer les guillemets doubles
+        .replace(/'/g, "'")           // Apostrophe courbe → apostrophe droite
+        .replace(/\\/g, "\\\\")       // Échapper les backslashes (en premier)
         .replace(/:/g, "\\:")         // Échapper les deux-points
         .replace(/,/g, "\\,")         // Échapper les virgules
         .replace(/\[/g, "\\[")        // Échapper les crochets
         .replace(/\]/g, "\\]")        // Échapper les crochets
-        .replace(/«/g, "'")           // Remplacer « par '
-        .replace(/»/g, "'");          // Remplacer » par '
+        .replace(/\(/g, "\\(")        // Échapper les parenthèses
+        .replace(/\)/g, "\\)")        // Échapper les parenthèses
+        .replace(/;/g, "\\;")         // Échapper les points-virgules
+        .replace(/%/g, "\\%");        // Échapper les pourcentages
 
       // Construire le filtre avec le bon échappement
       return `drawtext=fontfile=/Windows/Fonts/Impact.ttf:text='${escapedText}':x=(w-text_w)/2:y=h*0.8:fontsize=${fontsize}:fontcolor=${fontcolor}:enable='between(t\\,${subtitle.start}\\,${subtitle.end})':borderw=${borderw}:bordercolor=black:box=1:boxcolor=black@0.7:boxborderw=12`;

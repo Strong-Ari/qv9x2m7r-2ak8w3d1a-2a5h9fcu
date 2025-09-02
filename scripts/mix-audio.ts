@@ -119,7 +119,7 @@ export async function mixVideoAudio(
 async function main() {
   try {
     const mixer = new FFmpegAudioMixer({
-      inputVideo: 'output_pre_final_zoom.mp4',
+      inputVideo: 'output_pre_final.mp4',
       voiceTrack: 'public/ayanokoji-voice.mp3',
       musicTrack: 'public/ost.mp3',
       outputVideo: 'output_final.mp4'
