@@ -9,12 +9,40 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Setup FFmpeg
-        uses: stefanzweifel/setup-ffmpeg@v2
+      # === Installation FFmpeg avec cache ===
+      - name: 🎬 Cache FFmpeg
+        uses: actions/cache@v4
+        id: cache-ffmpeg
         with:
-          ffmpeg-version: 6.0
+          path: |
+            C:\ProgramData\chocolatey\lib\ffmpeg
+            C:\ProgramData\chocolatey\bin\ffmpeg.exe
+            C:\ProgramData\chocolatey\bin\ffprobe.exe
+          key: ffmpeg-${{ runner.os }}-v2
+          restore-keys: |
+            ffmpeg-${{ runner.os }}-
+
+      - name: 📦 Installer FFmpeg
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          Write-Host "🔽 Installation de FFmpeg..."
+          choco install ffmpeg -y --no-progress
+          Write-Host "✅ FFmpeg installé avec succès"
+
+      - name: 🧪 Vérifier installation FFmpeg
+        run: |
+          Write-Host "=== Test FFmpeg ==="
+          ffmpeg -version | Select-String "ffmpeg version" | Select-Object -First 1
+          ffprobe -version | Select-String "ffprobe version" | Select-Object -First 1
+
+          Write-Host "=== Chemins FFmpeg ==="
+          Get-Command ffmpeg | Select-Object Source
+          Get-Command ffprobe | Select-Object Source
+
+          Write-Host "✅ FFmpeg opérationnel !"
+
 
       - name: Prepare test image
         run: |
