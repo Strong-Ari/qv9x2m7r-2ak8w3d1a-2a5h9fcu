@@ -65,12 +65,19 @@ jobs:
           restore-keys: |
             ffmpeg-${{ runner.os }}-
 
-      - name: 📦 Installer FFmpeg
+      - name: 📦 Installer FFmpeg 7.1.1 (gyan.dev)
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
-          Write-Host "🔽 Installation de FFmpeg..."
-          choco install ffmpeg -y --no-progress
-          Write-Host "✅ FFmpeg installé avec succès"
+          Write-Host "🔽 Téléchargement de FFmpeg 7.1.1 essentials..."
+          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-7.1.1-essentials_build.7z
+
+          Write-Host "📂 Extraction..."
+          7z x ffmpeg.7z -o"$env:RUNNER_TEMP\ffmpeg" -y
+
+          Write-Host "➕ Ajout de FFmpeg au PATH"
+          echo "$env:RUNNER_TEMP\ffmpeg\ffmpeg-7.1.1-essentials_build\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          Write-Host "✅ FFmpeg 7.1.1 installé"
 
       - name: 🧪 Vérifier installation FFmpeg
         run: |
