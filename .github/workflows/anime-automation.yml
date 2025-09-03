@@ -444,20 +444,28 @@ jobs:
             logs/
           retention-days: 3
 
-      - name: 📢 Notifier Telegram (succès ou échec)
+      - name: 📢 Notifier Telegram (Succès ou Échec)
         if: always()
-        uses: appleboy/telegram-action@v0.1.1
-        with:
-          to: ${{ secrets.TELEGRAM_TO }}
-          token: ${{ secrets.TELEGRAM_TOKEN }}
-          message: |
-            ${{ job.status == 'success' && '✅' || '❌' }} Automatisation Animé terminée !
-            Statut: ${{ job.status }}
-            Workflow: ${{ github.workflow }}
-            Job: ${{ github.job }}
-            Commit: ${{ github.sha }}
-            Auteur: ${{ github.actor }}
-            Lien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          $status = "${{ job.status }}"
+          $msg = if ($status -eq "success") { "✅ Automatisation Animé terminée avec succès !" } else { "❌ Échec Automatisation Animé !" }
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" `
+            -d chat_id=${{ secrets.TELEGRAM_TO }} `
+            -d text="$msg`nWorkflow: ${{ github.workflow }}`nJob: ${{ github.job }}`nCommit: ${{ github.sha }}`nAuteur: ${{ github.actor }}`nLien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+              if: always()
+              uses: appleboy/telegram-action@v0.1.1
+              with:
+                to: ${{ secrets.TELEGRAM_TO }}
+                token: ${{ secrets.TELEGRAM_TOKEN }}
+                message: |
+                  ${{ job.status == 'success' && '✅' || '❌' }} Automatisation Animé terminée !
+                  Statut: ${{ job.status }}
+                  Workflow: ${{ github.workflow }}
+                  Job: ${{ github.job }}
+                  Commit: ${{ github.sha }}
+                  Auteur: ${{ github.actor }}
+                  Lien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: 📧 Envoyer mail stylisé React Email + Tailwind via Resend
         if: always()
