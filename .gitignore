@@ -50,7 +50,8 @@ public/selected-clips.json
 public/ost.mp3
 public/ffmpeg-command.json
 
-models/
+models/*
+!models/.gitkeep
 subs/ayanokoji-voice.json
 
 output.mp4
