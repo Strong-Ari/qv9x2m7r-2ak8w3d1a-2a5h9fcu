@@ -1,30 +1,39 @@
-name: Lister les polices
+name: Test FFmpeg Impact
 
 on:
   workflow_dispatch:
 
 jobs:
-  list-fonts:
+  ffmpeg-impact-test:
     runs-on: windows-latest
 
     steps:
-      - name: 📦 Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      - name: 🔎 Lister toutes les polices Windows
-        shell: pwsh
-        run: |
-          Write-Output "Liste des polices dans C:\Windows\Fonts :"
-          Get-ChildItem -Path 'C:\Windows\Fonts' | ForEach-Object { $_.Name }
+      - name: Setup FFmpeg
+        uses: stefanzweifel/setup-ffmpeg@v2
+        with:
+          ffmpeg-version: 6.0
 
-      - name: 🔍 Vérifier présence de Impact
-        shell: pwsh
+      - name: Prepare test image
         run: |
-          Write-Output "Recherche de la police Impact :"
-          $impact = Get-ChildItem -Path 'C:\Windows\Fonts' -Filter '*Impact*'
-          if ($impact) {
-            Write-Output "✅ Impact trouvé :"
-            $impact | ForEach-Object { $_.Name }
-          } else {
-            Write-Output "❌ Impact non trouvé"
-          }
+          mkdir test
+          # Crée une image blanche 800x600
+          ffmpeg -f lavfi -i color=c=white:s=800x600:d=1 test/input.png
+
+      - name: Locate Impact font
+        run: |
+          echo "Recherche Impact..."
+          dir C:\Windows\Fonts\*Impact* /b
+
+      - name: Apply drawtext with Impact
+        run: |
+          set FONT_PATH=C:\Windows\Fonts\Impact.ttf
+          ffmpeg -i test/input.png -vf "drawtext=fontfile='${FONT_PATH}':text='TEST IMPACT':x=(w-text_w)/2:y=(h-text_h)/2:fontsize=48:fontcolor=red" test/output.png
+
+      - name: Upload result
+        uses: actions/upload-artifact@v3
+        with:
+          name: ffmpeg-impact-test-result
+          path: test/output.png
