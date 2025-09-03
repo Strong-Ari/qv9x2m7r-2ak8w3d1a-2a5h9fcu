@@ -1,17 +1,30 @@
-name: Vérifier la police Impact
+name: Lister les polices
 
 on:
   workflow_dispatch:
 
 jobs:
-  check-impact-font:
+  list-fonts:
     runs-on: windows-latest
 
     steps:
-      - name: 📦 Checkout du repo
+      - name: 📦 Checkout
         uses: actions/checkout@v4
 
-      - name: 🔎 Chercher la police Impact
+      - name: 🔎 Lister toutes les polices Windows
+        shell: pwsh
         run: |
-          echo "Recherche de la police Impact dans C:\Windows\Fonts..."
-          dir C:\Windows\Fonts\*Impact* /b
+          Write-Output "Liste des polices dans C:\Windows\Fonts :"
+          Get-ChildItem -Path 'C:\Windows\Fonts' | ForEach-Object { $_.Name }
+
+      - name: 🔍 Vérifier présence de Impact
+        shell: pwsh
+        run: |
+          Write-Output "Recherche de la police Impact :"
+          $impact = Get-ChildItem -Path 'C:\Windows\Fonts' -Filter '*Impact*'
+          if ($impact) {
+            Write-Output "✅ Impact trouvé :"
+            $impact | ForEach-Object { $_.Name }
+          } else {
+            Write-Output "❌ Impact non trouvé"
+          }
