@@ -51,8 +51,9 @@ jobs:
 
       - name: Locate Impact font
         run: |
-          echo "Recherche Impact..."
-          dir C:\Windows\Fonts\*Impact* /b
+          Write-Host "Recherche Impact..."
+          Get-ChildItem "C:\Windows\Fonts" -Filter "*Impact*" | Select-Object -ExpandProperty FullName
+
 
       - name: Apply drawtext with Impact
         run: |
