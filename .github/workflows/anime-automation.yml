@@ -24,11 +24,6 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_TO: ${{ secrets.RESEND_TO }}
 
-      # Releases
-      RELEASE_BIN_URL: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-binaire/Faster-Whisper-XXL_r245.4_windows.7z"
-      RELEASE_MODEL_URL_001: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-model/Faster-Whisper-XXL_r245.4_windows.7z.001"
-      RELEASE_MODEL_URL_002: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-model/Faster-Whisper-XXL_r245.4_windows.7z.002"
-
     steps:
       - name: 🔍 Inventaire outils pré-installés
         run: |
@@ -129,56 +124,197 @@ jobs:
 
           Write-Host "✅ 7z opérationnel !"
 
-      # === Téléchargement & extraction Release Binaire ===
+      # === Téléchargement depuis releases privées avec GitHub API ===
+      - name: 🔑 Récupérer les URLs des releases privées
+        id: get-release-urls
+        run: |
+          Write-Host "🔑 Accès aux releases du repository privé..."
+
+          # Headers pour authentification GitHub API
+          $headers = @{
+            "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+            "Accept" = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+            "User-Agent" = "GitHubActions/1.0"
+          }
+
+          Write-Host "📋 Récupération des releases..."
+
+          # Variables pour stocker les URLs
+          $binDownloadUrl = ""
+          $modelDownloadUrl001 = ""
+          $modelDownloadUrl002 = ""
+
+          # Obtenir la release binaire v1.0-binaire
+          try {
+            Write-Host "🔍 Recherche release v1.0-binaire..."
+            $binRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.0-binaire" -Headers $headers -ErrorAction Stop
+            Write-Host "✅ Release binaire trouvée: $($binRelease.name)"
+
+            # Chercher l'asset binaire
+            $binAsset = $binRelease.assets | Where-Object { $_.name -eq "Faster-Whisper-XXL_r245.4_windows.7z" }
+            if ($binAsset) {
+              Write-Host "✅ Asset binaire trouvé: $($binAsset.name) (Taille: $([math]::Round($binAsset.size/1MB, 2)) MB)"
+              $binDownloadUrl = $binAsset.url
+            } else {
+              Write-Host "❌ Asset binaire 'Faster-Whisper-XXL_r245.4_windows.7z' non trouvé dans la release"
+              Write-Host "Assets disponibles:"
+              $binRelease.assets | ForEach-Object { Write-Host "  - $($_.name)" }
+            }
+          } catch {
+            Write-Host "❌ Erreur lors de l'accès à la release v1.0-binaire:"
+            Write-Host "   $($_.Exception.Message)"
+            if ($_.Exception.Response.StatusCode -eq 404) {
+              Write-Host "   → La release 'v1.0-binaire' n'existe pas"
+            }
+          }
+
+          # Obtenir la release modèle v1.0-model
+          try {
+            Write-Host "🔍 Recherche release v1.0-model..."
+            $modelRelease = Invoke-RestMethod -Uri "https://api.github.com/repos/${{ github.repository }}/releases/tags/v1.0-model" -Headers $headers -ErrorAction Stop
+            Write-Host "✅ Release modèle trouvée: $($modelRelease.name)"
+
+            # Chercher les assets du modèle
+            $modelAsset1 = $modelRelease.assets | Where-Object { $_.name -eq "Faster-Whisper-XXL_r245.4_windows.7z.001" }
+            $modelAsset2 = $modelRelease.assets | Where-Object { $_.name -eq "Faster-Whisper-XXL_r245.4_windows.7z.002" }
+
+            if ($modelAsset1) {
+              Write-Host "✅ Asset modèle partie 1 trouvé: $($modelAsset1.name) (Taille: $([math]::Round($modelAsset1.size/1MB, 2)) MB)"
+              $modelDownloadUrl001 = $modelAsset1.url
+            } else {
+              Write-Host "❌ Asset modèle partie 1 non trouvé"
+            }
+
+            if ($modelAsset2) {
+              Write-Host "✅ Asset modèle partie 2 trouvé: $($modelAsset2.name) (Taille: $([math]::Round($modelAsset2.size/1MB, 2)) MB)"
+              $modelDownloadUrl002 = $modelAsset2.url
+            } else {
+              Write-Host "❌ Asset modèle partie 2 non trouvé"
+            }
+
+            if (!$modelAsset1 -and !$modelAsset2) {
+              Write-Host "Assets disponibles dans v1.0-model:"
+              $modelRelease.assets | ForEach-Object { Write-Host "  - $($_.name)" }
+            }
+          } catch {
+            Write-Host "❌ Erreur lors de l'accès à la release v1.0-model:"
+            Write-Host "   $($_.Exception.Message)"
+            if ($_.Exception.Response.StatusCode -eq 404) {
+              Write-Host "   → La release 'v1.0-model' n'existe pas"
+            }
+          }
+
+          # Exporter les URLs vers les variables d'environnement pour les étapes suivantes
+          echo "BIN_DOWNLOAD_URL=$binDownloadUrl" >> $env:GITHUB_ENV
+          echo "MODEL_DOWNLOAD_URL_001=$modelDownloadUrl001" >> $env:GITHUB_ENV
+          echo "MODEL_DOWNLOAD_URL_002=$modelDownloadUrl002" >> $env:GITHUB_ENV
+
+          Write-Host ""
+          Write-Host "📊 Résumé des URLs récupérées:"
+          Write-Host "  Binaire: $(if($binDownloadUrl) { '✅ Disponible' } else { '❌ Manquant' })"
+          Write-Host "  Modèle part 1: $(if($modelDownloadUrl001) { '✅ Disponible' } else { '❌ Manquant' })"
+          Write-Host "  Modèle part 2: $(if($modelDownloadUrl002) { '✅ Disponible' } else { '❌ Manquant' })"
+
+      # === Cache et téléchargement binaire ===
       - name: 💾 Cache Faster-Whisper Binaire
         uses: actions/cache@v4
         id: cache-binaire
         with:
           path: models/Faster-Whisper-XXL_r245.4_windows
-          key: fw-binaire-${{ runner.os }}-v2
+          key: fw-binaire-${{ runner.os }}-v3
 
-      - name: ⬇️ Télécharger & extraire Binaire
+      - name: ⬇️ Télécharger & extraire Binaire (GitHub API)
         if: steps.cache-binaire.outputs.cache-hit != 'true'
         run: |
           Write-Host "📁 Création du dossier models..."
           New-Item -ItemType Directory -Path models -Force
 
-          Write-Host "⬇️ Téléchargement du binaire..."
-          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z ${{ env.RELEASE_BIN_URL }}
+          if ($env:BIN_DOWNLOAD_URL -and $env:BIN_DOWNLOAD_URL -ne "") {
+            Write-Host "⬇️ Téléchargement du binaire via GitHub API..."
 
-          Write-Host "📦 Extraction du binaire..."
-          7z x models\Faster-Whisper-XXL_r245.4_windows.7z -omodels -y
+            $headers = @{
+              "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+              "Accept" = "application/octet-stream"
+              "User-Agent" = "GitHubActions/1.0"
+            }
 
-          Write-Host "✅ Binaire extrait avec succès"
+            try {
+              Write-Host "🔗 URL de téléchargement: $env:BIN_DOWNLOAD_URL"
 
-      # === Téléchargement & extraction Release Modèle scindée ===
+              # Téléchargement avec barre de progression
+              $ProgressPreference = 'Continue'
+              Invoke-WebRequest -Uri $env:BIN_DOWNLOAD_URL -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z" -Verbose
+
+              if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z") {
+                $fileSize = (Get-Item "models\Faster-Whisper-XXL_r245.4_windows.7z").Length
+                Write-Host "✅ Téléchargement binaire réussi (Taille: $([math]::Round($fileSize/1MB, 2)) MB)"
+
+                Write-Host "📦 Extraction du binaire..."
+                7z x models\Faster-Whisper-XXL_r245.4_windows.7z -omodels -y
+
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "✅ Binaire extrait avec succès"
+
+                  # Vérifier le contenu extrait
+                  if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows") {
+                    Write-Host "📂 Contenu extrait:"
+                    Get-ChildItem "models\Faster-Whisper-XXL_r245.4_windows" -Recurse | Select-Object Name, Length | Format-Table -AutoSize
+                  }
+                } else {
+                  Write-Host "❌ Échec de l'extraction (code: $LASTEXITCODE)"
+                  exit 1
+                }
+              } else {
+                Write-Host "❌ Fichier binaire non créé après téléchargement"
+                exit 1
+              }
+            } catch {
+              Write-Host "❌ Erreur lors du téléchargement binaire:"
+              Write-Host "   $($_.Exception.Message)"
+              if ($_.Exception.Response) {
+                Write-Host "   Status: $($_.Exception.Response.StatusCode)"
+                Write-Host "   Reason: $($_.Exception.Response.ReasonPhrase)"
+              }
+              exit 1
+            }
+          } else {
+            Write-Host "⚠️ URL de téléchargement binaire non disponible"
+            Write-Host "   Vérifiez que la release 'v1.0-binaire' existe et contient le fichier 'Faster-Whisper-XXL_r245.4_windows.7z'"
+            Write-Host "   Continuons sans ce fichier..."
+          }
+
+      # === Cache et téléchargement modèle ===
       - name: 💾 Cache Faster-Whisper Modèle
         uses: actions/cache@v4
         id: cache-modele
         with:
           path: models/Faster-Whisper-XXL_r245.4_windows
-          key: fw-modele-${{ runner.os }}-v2
+          key: fw-modele-${{ runner.os }}-v3
 
-      - name: ⬇️ Télécharger & extraire Modèle (2 parties via API GitHub)
+      - name: ⬇️ Télécharger & extraire Modèle (2 parties via GitHub API)
         if: steps.cache-modele.outputs.cache-hit != 'true'
         run: |
           $headers = @{
             "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
             "Accept" = "application/octet-stream"
+            "User-Agent" = "GitHubActions/1.0"
           }
 
           $download1Success = $false
           $download2Success = $false
 
           # Téléchargement partie 1
-          if ($env:MODEL_DOWNLOAD_URL_001) {
-            Write-Host "⬇️ Téléchargement modèle partie 1 via API GitHub..."
+          if ($env:MODEL_DOWNLOAD_URL_001 -and $env:MODEL_DOWNLOAD_URL_001 -ne "") {
+            Write-Host "⬇️ Téléchargement modèle partie 1 via GitHub API..."
             try {
-              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_001 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.001"
+              $ProgressPreference = 'Continue'
+              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_001 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.001" -Verbose
 
               if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.001") {
+                $fileSize = (Get-Item "models\Faster-Whisper-XXL_r245.4_windows.7z.001").Length
+                Write-Host "✅ Partie 1 téléchargée (Taille: $([math]::Round($fileSize/1MB, 2)) MB)"
                 $download1Success = $true
-                Write-Host "✅ Partie 1 téléchargée"
               }
             } catch {
               Write-Host "❌ Erreur téléchargement partie 1: $($_.Exception.Message)"
@@ -188,14 +324,16 @@ jobs:
           }
 
           # Téléchargement partie 2
-          if ($env:MODEL_DOWNLOAD_URL_002) {
-            Write-Host "⬇️ Téléchargement modèle partie 2 via API GitHub..."
+          if ($env:MODEL_DOWNLOAD_URL_002 -and $env:MODEL_DOWNLOAD_URL_002 -ne "") {
+            Write-Host "⬇️ Téléchargement modèle partie 2 via GitHub API..."
             try {
-              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_002 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.002"
+              $ProgressPreference = 'Continue'
+              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_002 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.002" -Verbose
 
               if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.002") {
+                $fileSize = (Get-Item "models\Faster-Whisper-XXL_r245.4_windows.7z.002").Length
+                Write-Host "✅ Partie 2 téléchargée (Taille: $([math]::Round($fileSize/1MB, 2)) MB)"
                 $download2Success = $true
-                Write-Host "✅ Partie 2 téléchargée"
               }
             } catch {
               Write-Host "❌ Erreur téléchargement partie 2: $($_.Exception.Message)"
@@ -211,6 +349,12 @@ jobs:
               7z x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
               if ($LASTEXITCODE -eq 0) {
                 Write-Host "✅ Modèle extrait avec succès"
+
+                # Vérifier le contenu extrait
+                if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows") {
+                  Write-Host "📂 Contenu extrait:"
+                  Get-ChildItem "models\Faster-Whisper-XXL_r245.4_windows" -Recurse | Select-Object Name, Length | Format-Table -AutoSize
+                }
               } else {
                 Write-Host "❌ Échec de l'extraction (code: $LASTEXITCODE)"
                 exit 1
@@ -220,7 +364,11 @@ jobs:
               exit 1
             }
           } else {
-            Write-Host "⚠️ Téléchargement du modèle incomplet, continuons..."
+            Write-Host "⚠️ Téléchargement du modèle incomplet"
+            Write-Host "   Part 1: $(if($download1Success) { '✅' } else { '❌' })"
+            Write-Host "   Part 2: $(if($download2Success) { '✅' } else { '❌' })"
+            Write-Host "   Vérifiez que la release 'v1.0-model' existe et contient les fichiers .001 et .002"
+            Write-Host "   Continuons sans ce fichier..."
           }
 
       # === Pipeline vidéo ===
