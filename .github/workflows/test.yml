@@ -61,7 +61,7 @@ jobs:
           ffmpeg -i test/input.png -vf "drawtext=fontfile='${FONT_PATH}':text='TEST IMPACT':x=(w-text_w)/2:y=(h-text_h)/2:fontsize=48:fontcolor=red" test/output.png
 
       - name: Upload result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-impact-test-result
           path: test/output.png
