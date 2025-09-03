@@ -138,4 +138,5 @@ if (require.main === module) {
   main();
 }
 
-export { FFmpegAudioMixer, AudioMixConfig };
+export { FFmpegAudioMixer };  export type { AudioMixConfig };
+

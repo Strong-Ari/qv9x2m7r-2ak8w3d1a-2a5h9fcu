@@ -1,0 +1,297 @@
+name: Automatisation Anime
+
+on:
+  # schedule:
+  #   - cron: "0 14,22 * * *" # 14h et 22h UTC
+  workflow_dispatch:
+
+jobs:
+  anime-automation:
+    runs-on: windows-latest
+    timeout-minutes: 120
+
+    env:
+      # Cloudinary
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+
+      # Telegram
+      TELEGRAM_TO: ${{ secrets.TELEGRAM_TO }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+
+      # Email
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_TO: ${{ secrets.RESEND_TO }}
+
+      # Releases
+      RELEASE_BIN_URL: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-binaire/Faster-Whisper-XXL_r245.4_windows.7z"
+      RELEASE_MODEL_URL_001: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-model/Faster-Whisper-XXL_r245.4_windows.7z.001"
+      RELEASE_MODEL_URL_002: "https://github.com/Strong-Ari/anime-automation/releases/download/v1.0-model/Faster-Whisper-XXL_r245.4_windows.7z.002"
+
+    steps:
+      - name: 🔍 Inventaire outils pré-installés
+        run: |
+          Write-Host "=== Chocolatey packages ==="
+          choco list --local-only
+
+          Write-Host "=== Versions languages ==="
+          node --version
+          python --version
+          git --version
+
+          Write-Host "=== Outils système ==="
+          Get-Command 7z -ErrorAction SilentlyContinue
+          Get-Command ffmpeg -ErrorAction SilentlyContinue
+          Get-Command aria2c -ErrorAction SilentlyContinue
+
+      - name: 📦 Checkout du code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: 'npm'
+
+      - name: 📦 Installation des dépendances
+        run: npm ci
+
+      # === Installation FFmpeg avec cache ===
+      - name: 🎬 Cache FFmpeg
+        uses: actions/cache@v4
+        id: cache-ffmpeg
+        with:
+          path: |
+            C:\tools\ffmpeg
+            C:\ProgramData\chocolatey\lib\ffmpeg
+          key: ffmpeg-${{ runner.os }}
+          restore-keys: |
+            ffmpeg-${{ runner.os }}
+
+      - name: 📦 Installer FFmpeg
+        if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
+        run: |
+          Write-Host "🔽 Installation de FFmpeg..."
+          choco install ffmpeg -y --no-progress
+          Write-Host "✅ FFmpeg installé avec succès"
+
+      - name: 🛤️ Ajouter FFmpeg au PATH
+        run: |
+          # Trouver le chemin d'installation FFmpeg
+          $ffmpegPath = Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\ffmpeg" -Recurse -Directory -Name "bin" | Select-Object -First 1
+          if ($ffmpegPath) {
+            $fullPath = "C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin"
+            Write-Host "📁 Chemin FFmpeg trouvé: $fullPath"
+
+            # Ajouter au PATH pour cette session
+            $env:PATH = "$fullPath;$env:PATH"
+
+            # Ajouter au PATH pour les étapes suivantes
+            echo "$fullPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+            Write-Host "✅ FFmpeg ajouté au PATH"
+          } else {
+            Write-Error "❌ Impossible de trouver le chemin FFmpeg"
+            exit 1
+          }
+
+      - name: 🧪 Vérifier installation FFmpeg
+        run: |
+          Write-Host "=== Test FFmpeg ==="
+          ffmpeg -version | Select-String "ffmpeg version" | Select-Object -First 1
+          ffprobe -version | Select-String "ffprobe version" | Select-Object -First 1
+
+          Write-Host "=== Chemins FFmpeg ==="
+          Get-Command ffmpeg | Select-Object Source
+          Get-Command ffprobe | Select-Object Source
+
+          Write-Host "✅ FFmpeg opérationnel !"
+
+      # === Installation aria2 avec cache ===
+      - name: ⚡ Cache aria2
+        uses: actions/cache@v4
+        id: cache-aria2
+        with:
+          path: |
+            C:\ProgramData\chocolatey\lib\aria2
+          key: aria2-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            aria2-${{ runner.os }}-
+
+      - name: 📦 Installer aria2
+        if: steps.cache-aria2.outputs.cache-hit != 'true'
+        run: |
+          Write-Host "🔽 Installation de aria2..."
+          choco install aria2 -y --no-progress
+          Write-Host "✅ aria2 installé avec succès"
+
+      - name: 🛤️ Ajouter aria2 au PATH
+        run: |
+          # Trouver le chemin d'installation aria2
+          $aria2Path = "C:\ProgramData\chocolatey\lib\aria2\tools"
+          if (Test-Path $aria2Path) {
+            Write-Host "📁 Chemin aria2 trouvé: $aria2Path"
+
+            # Ajouter au PATH pour cette session
+            $env:PATH = "$aria2Path;$env:PATH"
+
+            # Ajouter au PATH pour les étapes suivantes
+            echo "$aria2Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+            Write-Host "✅ aria2 ajouté au PATH"
+          } else {
+            Write-Error "❌ Impossible de trouver le chemin aria2"
+            exit 1
+          }
+
+      - name: 🧪 Vérifier installation aria2
+        run: |
+          Write-Host "=== Test aria2 ==="
+          aria2c --version | Select-String "aria2 version" | Select-Object -First 1
+
+          Write-Host "=== Chemin aria2 ==="
+          Get-Command aria2c | Select-Object Source
+
+          Write-Host "✅ aria2 opérationnel !"
+
+      # === Téléchargement & extraction Release Binaire ===
+      - name: 💾 Téléchargement Faster-Whisper Binaire
+        uses: actions/cache@v4
+        id: cache-binaire
+        with:
+          path: models/Faster-Whisper-XXL_r245.4_windows
+          key: fw-binaire-${{ runner.os }}
+
+      - name: ⬇️ Télécharger & extraire Binaire
+        if: steps.cache-binaire.outputs.cache-hit != 'true'
+        run: |
+          mkdir models
+          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z ${{ env.RELEASE_BIN_URL }}
+          "C:\ProgramData\chocolatey\tools\7z.exe" x models\Faster-Whisper-XXL_r245.4_windows.7z -omodels -y
+
+      # === Téléchargement & extraction Release Modèle scindée ===
+      - name: 💾 Téléchargement Faster-Whisper Modèle
+        uses: actions/cache@v4
+        id: cache-modele
+        with:
+          path: models/Faster-Whisper-XXL_r245.4_windows
+          key: fw-modele-${{ runner.os }}
+
+      - name: ⬇️ Télécharger & extraire Modèle (2 parties)
+        if: steps.cache-modele.outputs.cache-hit != 'true'
+        run: |
+          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.001 ${{ env.RELEASE_MODEL_URL_001 }}
+          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.002 ${{ env.RELEASE_MODEL_URL_002 }}
+          "C:\ProgramData\chocolatey\tools\7z.exe" x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
+
+      # === Pipeline vidéo ===
+      - name: 🎵 Étape 1 - Téléchargement voix aléatoire
+        run: npm run start
+
+      - name: 🎬 Étape 2 - Sélection des clips anime
+        run: npm run select-clips
+
+      - name: 🔗 Étape 3 - Concaténation clips avec transitions
+        run: npm run concat-clips
+
+      - name: ✨ Étape 4 - Application effets TikTok
+        run: npm run ffmpeg-tiktok-effects
+
+      - name: 🎵 Étape 5 - Téléchargement OST aléatoire
+        run: npm run download-random-ost
+
+      - name: 📝 Étape 6 - Génération des sous-titres
+        run: npm run generate-subs
+
+      - name: 🧹 Étape 7 - Nettoyage des sous-titres
+        run: npm run clean-subs
+
+      - name: ✍️ Étape 8 - Génération drawtext
+        run: npm run generate-drawtext
+
+      - name: 📖 Étape 9 - Ajout des sous-titres
+        run: npm run add-subtitles
+
+      - name: 🔊 Étape 10 - Mixage audio
+        run: npm run mix-audio
+
+      # # === Upload & publication ===
+      # - name: ☁️ Upload Cloudinary
+      #   run: npm run upload-to-cloudinary
+
+      # - name: 📱 Publication TikTok
+      #   run: npm run put-to-tiktok
+      #   env:
+      #     CHROMIUM_FLAGS: "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor"
+
+      # === Artifacts ===
+      - name: 💾 Sauvegarde vidéo finale
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: anime-video-${{ github.run_number }}
+          path: |
+            output.mp4
+            output_video.mp4
+            output_pre_final.mp4
+            output_final.mp4
+          retention-days: 7
+
+      - name: 💾 Sauvegarde JSON
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: json-public-subs
+          path: |
+            public/*.json
+            subs/*.json
+          retention-days: 7
+
+      - name: 💾 Sauvegarde logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: logs-${{ github.run_number }}
+          path: |
+            *.log
+            logs/
+          retention-days: 3
+
+      - name: 📢 Notifier Telegram (succès ou échec)
+        if: always()
+        uses: appleboy/telegram-action@v0.1.1
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ${{ job.status == 'success' && '✅' || '❌' }} Automatisation Animé terminée !
+            Statut: ${{ job.status }}
+            Workflow: ${{ github.workflow }}
+            Job: ${{ github.job }}
+            Commit: ${{ github.sha }}
+            Auteur: ${{ github.actor }}
+            Lien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: 📧 Envoyer mail stylisé React Email + Tailwind via Resend
+        if: always()
+        run: pnpm run send-email
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_TO: ${{ secrets.RESEND_TO }}
+          STATUS: ${{ job.status }}
+          STATUS_EMOJI: ${{ job.status == 'success' && '🎉' || '💥' }}
+          GITHUB_WORKFLOW: ${{ github.workflow }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+
+
+      # === Nettoyage ===
+      - name: 🧹 Nettoyage fichiers temporaires
+        if: always()
+        run: |
+          Remove-Item -Recurse -Force temp, cache
+          Get-ChildItem -Recurse -Include *.tmp, *.temp | Remove-Item -Force

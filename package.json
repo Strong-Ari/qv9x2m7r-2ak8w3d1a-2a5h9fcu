@@ -15,26 +15,34 @@
     "mix-audio": "ts-node scripts/mix-audio.ts",
     "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
     "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
-
+    "send-email": "tsx scripts/send-email.tsx",
+    "build-email": "tsx email/TikTokReport.tsx",
     "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
   },
   "dependencies": {
+    "@react-email/components": "^0.0.15",
     "cli-progress": "^3.12.0",
     "cloudinary": "^2.7.0",
     "dotenv": "^16.3.1",
     "get-audio-duration": "^4.0.1",
     "get-video-duration": "^4.1.0",
-    "ts-node": "^10.9.1",
-    "typescript": "^5.2.2",
-    "whisper.cpp": "^1.0.3",
     "patchright": "^1.52.5",
     "playwright": "^1.54.1",
     "playwright-extra": "^4.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "resend": "^3.2.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.2.2",
+    "whisper.cpp": "^1.0.3"
   },
   "type": "commonjs",
   "devDependencies": {
     "@types/cli-progress": "^3.11.6",
-    "@types/node": "^24.3.0"
+    "@types/node": "^24.3.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "tsx": "^4.20.5"
   }
 }
