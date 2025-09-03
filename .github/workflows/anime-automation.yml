@@ -163,15 +163,51 @@ jobs:
         if: steps.cache-modele.outputs.cache-hit != 'true'
         run: |
           Write-Host "⬇️ Téléchargement partie 1..."
-          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.001 ${{ env.RELEASE_MODEL_URL_001 }}
+          $download1Success = $false
+          try {
+            aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.001 "${{ env.RELEASE_MODEL_URL_001 }}"
+            if ($LASTEXITCODE -eq 0 -and (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.001")) {
+              $download1Success = $true
+              Write-Host "✅ Partie 1 téléchargée"
+            } else {
+              Write-Host "❌ Échec téléchargement partie 1 (code: $LASTEXITCODE)"
+            }
+          } catch {
+            Write-Host "❌ Erreur téléchargement partie 1: $($_.Exception.Message)"
+          }
 
           Write-Host "⬇️ Téléchargement partie 2..."
-          aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.002 ${{ env.RELEASE_MODEL_URL_002 }}
+          $download2Success = $false
+          try {
+            aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.002 "${{ env.RELEASE_MODEL_URL_002 }}"
+            if ($LASTEXITCODE -eq 0 -and (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.002")) {
+              $download2Success = $true
+              Write-Host "✅ Partie 2 téléchargée"
+            } else {
+              Write-Host "❌ Échec téléchargement partie 2 (code: $LASTEXITCODE)"
+            }
+          } catch {
+            Write-Host "❌ Erreur téléchargement partie 2: $($_.Exception.Message)"
+          }
 
-          Write-Host "📦 Extraction du modèle multi-parties..."
-          7z x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
-
-          Write-Host "✅ Modèle extrait avec succès"
+          if ($download1Success -and $download2Success) {
+            Write-Host "📦 Extraction du modèle multi-parties..."
+            try {
+              7z x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "✅ Modèle extrait avec succès"
+              } else {
+                Write-Host "❌ Échec de l'extraction (code: $LASTEXITCODE)"
+                exit 1
+              }
+            } catch {
+              Write-Host "❌ Erreur lors de l'extraction: $($_.Exception.Message)"
+              exit 1
+            }
+          } else {
+            Write-Host "⚠️ Téléchargement du modèle échoué, continuons sans ce fichier..."
+            Write-Host "Vérifiez que les fichiers existent dans votre release GitHub"
+          }
 
       # === Pipeline vidéo ===
       - name: 🎵 Étape 1 - Téléchargement voix aléatoire
