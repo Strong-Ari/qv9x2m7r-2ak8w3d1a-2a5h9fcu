@@ -33,7 +33,7 @@ jobs:
       - name: 🔍 Inventaire outils pré-installés
         run: |
           Write-Host "=== Chocolatey packages ==="
-          choco list --local-only
+          choco list
 
           Write-Host "=== Versions languages ==="
           node --version
@@ -54,8 +54,8 @@ jobs:
           node-version: "20"
           cache: 'npm'
 
-      - name: 📦 Installation des dépendances
-        run: npm ci
+      - name: 📦 Installation des dépendances (avec legacy-peer-deps)
+        run: npm ci --legacy-peer-deps
 
       # === Installation FFmpeg avec cache ===
       - name: 🎬 Cache FFmpeg
@@ -63,11 +63,12 @@ jobs:
         id: cache-ffmpeg
         with:
           path: |
-            C:\tools\ffmpeg
             C:\ProgramData\chocolatey\lib\ffmpeg
-          key: ffmpeg-${{ runner.os }}
+            C:\ProgramData\chocolatey\bin\ffmpeg.exe
+            C:\ProgramData\chocolatey\bin\ffprobe.exe
+          key: ffmpeg-${{ runner.os }}-v2
           restore-keys: |
-            ffmpeg-${{ runner.os }}
+            ffmpeg-${{ runner.os }}-
 
       - name: 📦 Installer FFmpeg
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
@@ -75,26 +76,6 @@ jobs:
           Write-Host "🔽 Installation de FFmpeg..."
           choco install ffmpeg -y --no-progress
           Write-Host "✅ FFmpeg installé avec succès"
-
-      - name: 🛤️ Ajouter FFmpeg au PATH
-        run: |
-          # Trouver le chemin d'installation FFmpeg
-          $ffmpegPath = Get-ChildItem -Path "C:\ProgramData\chocolatey\lib\ffmpeg" -Recurse -Directory -Name "bin" | Select-Object -First 1
-          if ($ffmpegPath) {
-            $fullPath = "C:\ProgramData\chocolatey\lib\ffmpeg\tools\ffmpeg\bin"
-            Write-Host "📁 Chemin FFmpeg trouvé: $fullPath"
-
-            # Ajouter au PATH pour cette session
-            $env:PATH = "$fullPath;$env:PATH"
-
-            # Ajouter au PATH pour les étapes suivantes
-            echo "$fullPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-            Write-Host "✅ FFmpeg ajouté au PATH"
-          } else {
-            Write-Error "❌ Impossible de trouver le chemin FFmpeg"
-            exit 1
-          }
 
       - name: 🧪 Vérifier installation FFmpeg
         run: |
@@ -115,7 +96,8 @@ jobs:
         with:
           path: |
             C:\ProgramData\chocolatey\lib\aria2
-          key: aria2-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+            C:\ProgramData\chocolatey\bin\aria2c.exe
+          key: aria2-${{ runner.os }}-v2
           restore-keys: |
             aria2-${{ runner.os }}-
 
@@ -125,25 +107,6 @@ jobs:
           Write-Host "🔽 Installation de aria2..."
           choco install aria2 -y --no-progress
           Write-Host "✅ aria2 installé avec succès"
-
-      - name: 🛤️ Ajouter aria2 au PATH
-        run: |
-          # Trouver le chemin d'installation aria2
-          $aria2Path = "C:\ProgramData\chocolatey\lib\aria2\tools"
-          if (Test-Path $aria2Path) {
-            Write-Host "📁 Chemin aria2 trouvé: $aria2Path"
-
-            # Ajouter au PATH pour cette session
-            $env:PATH = "$aria2Path;$env:PATH"
-
-            # Ajouter au PATH pour les étapes suivantes
-            echo "$aria2Path" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-            Write-Host "✅ aria2 ajouté au PATH"
-          } else {
-            Write-Error "❌ Impossible de trouver le chemin aria2"
-            exit 1
-          }
 
       - name: 🧪 Vérifier installation aria2
         run: |
@@ -155,35 +118,60 @@ jobs:
 
           Write-Host "✅ aria2 opérationnel !"
 
+      # === Vérification 7z ===
+      - name: 🗜️ Vérifier installation 7z
+        run: |
+          Write-Host "=== Test 7z ==="
+          7z | Select-String "7-Zip" | Select-Object -First 1
+
+          Write-Host "=== Chemin 7z ==="
+          Get-Command 7z | Select-Object Source
+
+          Write-Host "✅ 7z opérationnel !"
+
       # === Téléchargement & extraction Release Binaire ===
-      - name: 💾 Téléchargement Faster-Whisper Binaire
+      - name: 💾 Cache Faster-Whisper Binaire
         uses: actions/cache@v4
         id: cache-binaire
         with:
           path: models/Faster-Whisper-XXL_r245.4_windows
-          key: fw-binaire-${{ runner.os }}
+          key: fw-binaire-${{ runner.os }}-v2
 
       - name: ⬇️ Télécharger & extraire Binaire
         if: steps.cache-binaire.outputs.cache-hit != 'true'
         run: |
-          mkdir models
+          Write-Host "📁 Création du dossier models..."
+          New-Item -ItemType Directory -Path models -Force
+
+          Write-Host "⬇️ Téléchargement du binaire..."
           aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z ${{ env.RELEASE_BIN_URL }}
-          "C:\ProgramData\chocolatey\tools\7z.exe" x models\Faster-Whisper-XXL_r245.4_windows.7z -omodels -y
+
+          Write-Host "📦 Extraction du binaire..."
+          7z x models\Faster-Whisper-XXL_r245.4_windows.7z -omodels -y
+
+          Write-Host "✅ Binaire extrait avec succès"
 
       # === Téléchargement & extraction Release Modèle scindée ===
-      - name: 💾 Téléchargement Faster-Whisper Modèle
+      - name: 💾 Cache Faster-Whisper Modèle
         uses: actions/cache@v4
         id: cache-modele
         with:
           path: models/Faster-Whisper-XXL_r245.4_windows
-          key: fw-modele-${{ runner.os }}
+          key: fw-modele-${{ runner.os }}-v2
 
       - name: ⬇️ Télécharger & extraire Modèle (2 parties)
         if: steps.cache-modele.outputs.cache-hit != 'true'
         run: |
+          Write-Host "⬇️ Téléchargement partie 1..."
           aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.001 ${{ env.RELEASE_MODEL_URL_001 }}
+
+          Write-Host "⬇️ Téléchargement partie 2..."
           aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.002 ${{ env.RELEASE_MODEL_URL_002 }}
-          "C:\ProgramData\chocolatey\tools\7z.exe" x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
+
+          Write-Host "📦 Extraction du modèle multi-parties..."
+          7z x models\Faster-Whisper-XXL_r245.4_windows.7z.001 -omodels -y
+
+          Write-Host "✅ Modèle extrait avec succès"
 
       # === Pipeline vidéo ===
       - name: 🎵 Étape 1 - Téléchargement voix aléatoire
@@ -275,7 +263,7 @@ jobs:
 
       - name: 📧 Envoyer mail stylisé React Email + Tailwind via Resend
         if: always()
-        run: pnpm run send-email
+        run: npm run send-email
         env:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_TO: ${{ secrets.RESEND_TO }}
@@ -288,10 +276,10 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_RUN_ID: ${{ github.run_id }}
 
-
       # === Nettoyage ===
       - name: 🧹 Nettoyage fichiers temporaires
         if: always()
         run: |
-          Remove-Item -Recurse -Force temp, cache
-          Get-ChildItem -Recurse -Include *.tmp, *.temp | Remove-Item -Force
+          if (Test-Path temp) { Remove-Item -Recurse -Force temp }
+          if (Test-Path cache) { Remove-Item -Recurse -Force cache }
+          Get-ChildItem -Recurse -Include *.tmp, *.temp -ErrorAction SilentlyContinue | Remove-Item -Force

@@ -43,11 +43,6 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Fonction utilitaire pour choisir un élément aléatoire dans un tableau
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
 // Fonction pour générer une description style "citation Ayanokoji" safe TikTok
 function generateDescription(): string {
   // Phrases neutres / descriptives
