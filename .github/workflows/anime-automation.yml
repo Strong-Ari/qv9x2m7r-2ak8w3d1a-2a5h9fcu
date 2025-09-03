@@ -159,37 +159,52 @@ jobs:
           path: models/Faster-Whisper-XXL_r245.4_windows
           key: fw-modele-${{ runner.os }}-v2
 
-      - name: ⬇️ Télécharger & extraire Modèle (2 parties)
+      - name: ⬇️ Télécharger & extraire Modèle (2 parties via API GitHub)
         if: steps.cache-modele.outputs.cache-hit != 'true'
         run: |
-          Write-Host "⬇️ Téléchargement partie 1..."
+          $headers = @{
+            "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}"
+            "Accept" = "application/octet-stream"
+          }
+
           $download1Success = $false
-          try {
-            aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.001 "${{ env.RELEASE_MODEL_URL_001 }}"
-            if ($LASTEXITCODE -eq 0 -and (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.001")) {
-              $download1Success = $true
-              Write-Host "✅ Partie 1 téléchargée"
-            } else {
-              Write-Host "❌ Échec téléchargement partie 1 (code: $LASTEXITCODE)"
-            }
-          } catch {
-            Write-Host "❌ Erreur téléchargement partie 1: $($_.Exception.Message)"
-          }
-
-          Write-Host "⬇️ Téléchargement partie 2..."
           $download2Success = $false
-          try {
-            aria2c -x 16 -s 16 -d models -o Faster-Whisper-XXL_r245.4_windows.7z.002 "${{ env.RELEASE_MODEL_URL_002 }}"
-            if ($LASTEXITCODE -eq 0 -and (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.002")) {
-              $download2Success = $true
-              Write-Host "✅ Partie 2 téléchargée"
-            } else {
-              Write-Host "❌ Échec téléchargement partie 2 (code: $LASTEXITCODE)"
+
+          # Téléchargement partie 1
+          if ($env:MODEL_DOWNLOAD_URL_001) {
+            Write-Host "⬇️ Téléchargement modèle partie 1 via API GitHub..."
+            try {
+              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_001 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.001"
+
+              if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.001") {
+                $download1Success = $true
+                Write-Host "✅ Partie 1 téléchargée"
+              }
+            } catch {
+              Write-Host "❌ Erreur téléchargement partie 1: $($_.Exception.Message)"
             }
-          } catch {
-            Write-Host "❌ Erreur téléchargement partie 2: $($_.Exception.Message)"
+          } else {
+            Write-Host "⚠️ URL partie 1 non disponible"
           }
 
+          # Téléchargement partie 2
+          if ($env:MODEL_DOWNLOAD_URL_002) {
+            Write-Host "⬇️ Téléchargement modèle partie 2 via API GitHub..."
+            try {
+              Invoke-WebRequest -Uri $env:MODEL_DOWNLOAD_URL_002 -Headers $headers -OutFile "models\Faster-Whisper-XXL_r245.4_windows.7z.002"
+
+              if (Test-Path "models\Faster-Whisper-XXL_r245.4_windows.7z.002") {
+                $download2Success = $true
+                Write-Host "✅ Partie 2 téléchargée"
+              }
+            } catch {
+              Write-Host "❌ Erreur téléchargement partie 2: $($_.Exception.Message)"
+            }
+          } else {
+            Write-Host "⚠️ URL partie 2 non disponible"
+          }
+
+          # Extraction si les deux parties sont téléchargées
           if ($download1Success -and $download2Success) {
             Write-Host "📦 Extraction du modèle multi-parties..."
             try {
@@ -205,8 +220,7 @@ jobs:
               exit 1
             }
           } else {
-            Write-Host "⚠️ Téléchargement du modèle échoué, continuons sans ce fichier..."
-            Write-Host "Vérifiez que les fichiers existent dans votre release GitHub"
+            Write-Host "⚠️ Téléchargement du modèle incomplet, continuons..."
           }
 
       # === Pipeline vidéo ===
