@@ -162,23 +162,8 @@ class BatchFFmpegProcessor {
     const commandLength = command.length;
 
     // Windows command line limit is around 8191 characters
-    // But we'll be conservative and batch if > 6000 chars or > 15 drawtext filters
-    return commandLength > 6000 || drawtextCount > 15;
-  }
-
-  /**
-   * Escape text for FFmpeg drawtext filter
-   */
-  private escapeTextForFFmpeg(text: string): string {
-    return text
-      .replace(/\\/g, '\\\\')     // Échapper les backslashes
-      .replace(/:/g, '\\:')       // Échapper les deux-points
-      .replace(/'/g, "\\'")       // Échapper les apostrophes
-      .replace(/,/g, "\\,")       // Échapper les virgules
-      .replace(/\[/g, '\\[')      // Échapper les crochets ouvrants
-      .replace(/\]/g, '\\]')      // Échapper les crochets fermants
-      .replace(/;/g, '\\;')       // Échapper les points-virgules
-      .replace(/"/g, '\\"');      // Échapper les guillemets doubles
+    // But we'll be conservative and batch if > 6000 chars or > 10 drawtext filters
+    return commandLength > 6000 || drawtextCount > 10;
   }
 
   /**
@@ -214,100 +199,6 @@ class BatchFFmpegProcessor {
     }).filter(filter => filter !== null);
 
     return filters.join(',');
-  }
-
-  /**
-   * Write filter graph to a file for -filter_script
-   */
-  private writeFilterGraph(filters: string): string {
-    // Créer le nom du fichier basé sur un hash du contenu des filtres
-    const hash = require('crypto').createHash('md5').update(filters).digest('hex').substring(0, 8);
-    const filterScriptPath = path.join(process.cwd(), `filter_script_${hash}.txt`);
-
-    // Vérifier si un fichier de filtre avec le même hash existe déjà
-    if (fs.existsSync(filterScriptPath)) {
-      console.log(`📎 Réutilisation du fichier de filtres existant: ${path.basename(filterScriptPath)}`);
-      return filterScriptPath;
-    }
-
-    // Assurer que les filtres sont correctement formatés
-    const formattedFilters = filters
-      .replace(/\n/g, ' ')
-      .split(',')
-      .map(filter => filter.trim())
-      .filter(filter => filter.length > 0)
-      .join(",\n");
-
-    fs.writeFileSync(filterScriptPath, formattedFilters, 'utf8');
-    this.tempFiles.push(filterScriptPath);
-
-    // Log pour le débogage
-    console.log(`📝 Contenu du fichier de filtres (${path.basename(filterScriptPath)}):`);
-    console.log(formattedFilters.split('\n')[0] + '\n...');
-
-    return filterScriptPath;
-  }
-
-  /**
-   * Process command with filter script for long filter chains
-   */
-  async processWithFilterScript(command: string, showProgress: boolean = false): Promise<void> {
-    console.log('📝 Utilisation de -filter_script pour la chaîne de filtres longue');
-
-    const parsed = this.parseFFmpegCommand(command);
-    if (!parsed.input || !parsed.output) {
-      throw new Error('Impossible d\'extraire les fichiers d\'entrée et de sortie');
-    }
-
-    // Écrire les filtres dans un fichier
-    const filterScriptPath = this.writeFilterGraph(parsed.videoFilters);
-    console.log(`📄 Fichier de filtres créé : ${path.basename(filterScriptPath)}`);
-
-    // Construire la nouvelle commande avec -filter_script et arguments optimisés
-    const args: string[] = [];
-
-    // Arguments d'entrée
-    if (parsed.otherArgs.includes('-i')) {
-      // S'il y a plusieurs entrées, les préserver dans l'ordre original
-      const otherArgs = [...parsed.otherArgs];
-      let idx = 0;
-      while (idx < otherArgs.length) {
-        if (otherArgs[idx] === '-i') {
-          args.push('-i', otherArgs[idx + 1]);
-          otherArgs.splice(idx, 2);
-        } else {
-          idx++;
-        }
-      }
-      parsed.otherArgs = otherArgs;
-    } else {
-      args.push('-i', parsed.input);
-    }
-
-    // Arguments du filtre
-    args.push('-filter_script', filterScriptPath);
-
-    // Codec audio
-    if (parsed.audioCodec) {
-      args.push('-c:a', parsed.audioCodec);
-    }
-
-    // Autres arguments en préservant leur ordre
-    const remainingArgs = parsed.otherArgs.filter(arg => !arg.startsWith('-filter'));
-    if (remainingArgs.length > 0) {
-      args.push(...remainingArgs);
-    }
-
-    // Force output
-    args.push('-y', parsed.output);
-
-    try {
-      await this.executeFFmpegCommand(args, showProgress);
-      console.log('✅ Traitement avec filter_script terminé');
-    } catch (error) {
-      console.error('❌ Échec du traitement avec filter_script, tentative avec le traitement par lots...');
-      await this.processByBatches(command, 6, showProgress);
-    }
   }
 
   /**
@@ -372,10 +263,38 @@ class BatchFFmpegProcessor {
   }
 
   /**
+   * Try to execute simple command first, fallback to batch processing
+   */
+  async processCommand(command: string, showProgress: boolean = false): Promise<void> {
+    const parsed = this.parseFFmpegCommand(command);
+    if (!parsed.input || !parsed.output) {
+      throw new Error('Impossible d\'extraire les fichiers d\'entrée et de sortie');
+    }
+
+    // Vérifier si le traitement par lots est nécessaire
+    if (this.needsBatchProcessing(command)) {
+      console.log('📦 Commande trop longue détectée, utilisation du traitement par lots automatiquement');
+      await this.processByBatches(command, 8, showProgress);
+      return;
+    }
+
+    // Essayer d'abord avec la commande simple
+    try {
+      console.log('🎬 Tentative d\'exécution directe...');
+      const args = this.parseCommandLine(command.replace(/^ffmpeg\s+/, ''));
+      await this.executeFFmpegCommand(args, showProgress);
+      console.log('✅ Exécution directe réussie');
+    } catch (error) {
+      console.log('❌ Échec de l\'exécution directe, passage au traitement par lots...');
+      await this.processByBatches(command, 8, showProgress);
+    }
+  }
+
+  /**
    * Process command in batches
    */
   async processByBatches(command: string, batchSize: number = 8, showProgress: boolean = false): Promise<void> {
-    console.log('🔄 Traitement par lots détecté nécessaire');
+    console.log('🔄 Démarrage du traitement par lots');
 
     const parsed = this.parseFFmpegCommand(command);
     if (!parsed.input || !parsed.output) {
@@ -492,27 +411,8 @@ async function executeFFmpegFromJSON() {
 
     const startTime = Date.now();
 
-    // D'abord essayer avec filter_script
-    try {
-      await batchProcessor.processWithFilterScript(data.command, false);
-    } catch (error) {
-      console.log("❌ Échec avec filter_script, tentative de traitement par lots...");
-
-      // Si le traitement par lots est nécessaire
-      if (batchProcessor.needsBatchProcessing(data.command)) {
-        await batchProcessor.processByBatches(data.command, 6, false);
-      } else {
-        // Pour les commandes simples, essayer la méthode directe
-        try {
-          const { stdout, stderr } = await execAsync(data.command);
-          if (stdout) console.log("📤 Sortie standard :", stdout);
-          if (stderr) console.log("⚠️ Informations FFmpeg :", stderr);
-        } catch (execError: any) {
-          console.error("❌ Erreur d'exécution directe, tentative avec le traitement par lots...");
-          await batchProcessor.processByBatches(data.command, 6, false);
-        }
-      }
-    }
+    // Utiliser la nouvelle méthode processCommand qui gère automatiquement le fallback
+    await batchProcessor.processCommand(data.command, false);
 
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log("✅ Exécution terminée avec succès !");
@@ -559,36 +459,8 @@ function executeFFmpegWithProgress() {
     console.log(data.command.substring(0, 200) + '...');
     console.log("\n⏳ Début de l'exécution...\n");
 
-    // Essayer d'abord avec filter_script
-    batchProcessor.processWithFilterScript(data.command, true)
-      .catch((error) => {
-        console.error('\n❌ Échec avec filter_script, tentative de traitement par lots...');
-        // Si le traitement par lots est nécessaire
-        if (batchProcessor.needsBatchProcessing(data.command)) {
-          return batchProcessor.processByBatches(data.command, 6, true);
-        } else {
-          // Pour les commandes simples, utiliser la méthode directe
-          const child = exec(data.command);
-
-          child.stdout?.on('data', (data) => {
-            process.stdout.write(`📤 ${data}`);
-          });
-
-          child.stderr?.on('data', (data) => {
-            process.stderr.write(`ℹ️ ${data}`);
-          });
-
-          return new Promise<void>((resolve, reject) => {
-            child.on('close', (code) => {
-              if (code === 0) {
-                resolve();
-              } else {
-                reject(new Error(`Processus terminé avec le code : ${code}`));
-              }
-            });
-          });
-        }
-      })
+    // Utiliser la nouvelle méthode processCommand avec progression
+    batchProcessor.processCommand(data.command, true)
       .then(() => {
         console.log('\n✅ Exécution terminée avec succès !');
       })
