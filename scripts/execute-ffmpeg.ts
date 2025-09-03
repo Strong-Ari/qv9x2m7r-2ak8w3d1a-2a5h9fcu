@@ -26,8 +26,106 @@ interface ParsedFFmpegCommand {
   otherArgs: string[];
 }
 
+interface CommandLog {
+  batchNumber: number;
+  timestamp: string;
+  args: string[];
+  fullCommand: string;
+  subtitleCount: number;
+  success: boolean;
+  error?: string;
+}
+
 class BatchFFmpegProcessor {
   private tempFiles: string[] = [];
+  private commandLogs: CommandLog[] = [];
+  private logFilePath: string;
+
+  constructor() {
+    // Créer le nom du fichier de log avec timestamp
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    this.logFilePath = path.join(process.cwd(), `ffmpeg-commands-log-${timestamp}.json`);
+  }
+
+  /**
+   * Log une commande exécutée
+   */
+  private logCommand(
+    batchNumber: number,
+    args: string[],
+    subtitleCount: number,
+    success: boolean,
+    error?: string
+  ): void {
+    const log: CommandLog = {
+      batchNumber,
+      timestamp: new Date().toISOString(),
+      args: [...args], // Copy pour éviter les modifications
+      fullCommand: `ffmpeg ${args.join(' ')}`,
+      subtitleCount,
+      success,
+      error
+    };
+
+    this.commandLogs.push(log);
+
+    // Sauvegarder immédiatement dans le fichier
+    this.saveCommandLogs();
+  }
+
+  /**
+   * Sauvegarder les logs dans un fichier JSON
+   */
+  private saveCommandLogs(): void {
+    try {
+      const logData = {
+        metadata: {
+          totalBatches: this.commandLogs.length,
+          timestamp: new Date().toISOString(),
+          logFile: path.basename(this.logFilePath)
+        },
+        commands: this.commandLogs
+      };
+
+      fs.writeFileSync(this.logFilePath, JSON.stringify(logData, null, 2), 'utf8');
+    } catch (error) {
+      console.warn(`⚠️ Impossible de sauvegarder les logs: ${error}`);
+    }
+  }
+
+  /**
+   * Créer aussi un fichier de commandes lisible
+   */
+  private saveReadableCommands(): void {
+    try {
+      const readablePath = this.logFilePath.replace('.json', '.txt');
+      let content = `=== COMMANDES FFMPEG EXÉCUTÉES ===\n`;
+      content += `Générées le: ${new Date().toLocaleString()}\n`;
+      content += `Total de lots: ${this.commandLogs.length}\n\n`;
+
+      this.commandLogs.forEach((log, index) => {
+        content += `--- LOT ${log.batchNumber} ---\n`;
+        content += `Timestamp: ${new Date(log.timestamp).toLocaleString()}\n`;
+        content += `Sous-titres: ${log.subtitleCount}\n`;
+        content += `Statut: ${log.success ? '✅ SUCCÈS' : '❌ ÉCHEC'}\n`;
+        if (log.error) {
+          content += `Erreur: ${log.error}\n`;
+        }
+        content += `\nCommande complète:\n`;
+        content += `${log.fullCommand}\n`;
+        content += `\nArguments séparés:\n`;
+        log.args.forEach((arg, argIndex) => {
+          content += `  [${argIndex}]: ${arg}\n`;
+        });
+        content += `\n${'='.repeat(80)}\n\n`;
+      });
+
+      fs.writeFileSync(readablePath, content, 'utf8');
+      console.log(`📄 Fichier lisible créé: ${path.basename(readablePath)}`);
+    } catch (error) {
+      console.warn(`⚠️ Impossible de créer le fichier lisible: ${error}`);
+    }
+  }
 
   /**
    * Parse command line arguments handling quotes properly
@@ -204,10 +302,15 @@ class BatchFFmpegProcessor {
   /**
    * Execute single FFmpeg command with spawn for better control
    */
-  private executeFFmpegCommand(args: string[], showProgress: boolean = false): Promise<void> {
+  private executeFFmpegCommand(
+    args: string[],
+    showProgress: boolean = false,
+    batchNumber: number = 0,
+    subtitleCount: number = 0
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       if (showProgress) {
-        console.log(`🎬 Exécution: ffmpeg ${args.join(' ')}`);
+        console.log(`🎬 Exécution lot ${batchNumber}: ffmpeg ${args.join(' ')}`);
       }
 
       // Nettoyer les arguments pour éviter les problèmes d'échappement
@@ -231,7 +334,7 @@ class BatchFFmpegProcessor {
           stderrData += output;
 
           if (output.includes('frame=') || output.includes('time=')) {
-            process.stdout.write(`\r⏳ ${output.split('\n').pop()?.trim() || ''}`);
+            process.stdout.write(`\r⏳ Lot ${batchNumber}: ${output.split('\n').pop()?.trim() || ''}`);
           }
         });
       } else {
@@ -245,10 +348,16 @@ class BatchFFmpegProcessor {
           process.stdout.write('\n');
         }
 
-        if (code === 0) {
+        const success = code === 0;
+        const error = success ? undefined : `Code ${code}: ${stderrData}`;
+
+        // Enregistrer la commande dans les logs
+        this.logCommand(batchNumber, args, subtitleCount, success, error);
+
+        if (success) {
           resolve();
         } else {
-          console.error(`❌ FFmpeg a échoué avec le code ${code}`);
+          console.error(`❌ FFmpeg lot ${batchNumber} a échoué avec le code ${code}`);
           console.error('Détails de l\'erreur:');
           console.error(stderrData);
           reject(new Error(`FFmpeg a échoué avec le code ${code}. Erreur: ${stderrData}`));
@@ -256,7 +365,8 @@ class BatchFFmpegProcessor {
       });
 
       ffmpeg.on('error', (error) => {
-        console.error(`❌ Erreur lors du lancement de FFmpeg:`, error.message);
+        console.error(`❌ Erreur lors du lancement de FFmpeg lot ${batchNumber}:`, error.message);
+        this.logCommand(batchNumber, args, subtitleCount, false, error.message);
         reject(error);
       });
     });
@@ -271,6 +381,8 @@ class BatchFFmpegProcessor {
       throw new Error('Impossible d\'extraire les fichiers d\'entrée et de sortie');
     }
 
+    console.log(`📝 Logs seront sauvegardés dans: ${path.basename(this.logFilePath)}`);
+
     // Vérifier si le traitement par lots est nécessaire
     if (this.needsBatchProcessing(command)) {
       console.log('📦 Commande trop longue détectée, utilisation du traitement par lots automatiquement');
@@ -282,7 +394,7 @@ class BatchFFmpegProcessor {
     try {
       console.log('🎬 Tentative d\'exécution directe...');
       const args = this.parseCommandLine(command.replace(/^ffmpeg\s+/, ''));
-      await this.executeFFmpegCommand(args, showProgress);
+      await this.executeFFmpegCommand(args, showProgress, 1, 0);
       console.log('✅ Exécution directe réussie');
     } catch (error) {
       console.log('❌ Échec de l\'exécution directe, passage au traitement par lots...');
@@ -308,7 +420,7 @@ class BatchFFmpegProcessor {
       console.log('⚠️ Aucun sous-titre trouvé, tentative d\'exécution normale...');
       // Essayer d'exécuter la commande originale
       const args = this.parseCommandLine(command.replace(/^ffmpeg\s+/, ''));
-      await this.executeFFmpegCommand(args, showProgress);
+      await this.executeFFmpegCommand(args, showProgress, 1, 0);
       return;
     }
 
@@ -343,7 +455,7 @@ class BatchFFmpegProcessor {
       ];
 
       try {
-        await this.executeFFmpegCommand(args, showProgress);
+        await this.executeFFmpegCommand(args, showProgress, batchIndex + 1, batch.length);
         currentInput = tempOutput;
       } catch (error) {
         console.error(`❌ Erreur lors du traitement du lot ${batchIndex + 1}:`, error);
@@ -359,10 +471,14 @@ class BatchFFmpegProcessor {
         '-c', 'copy',
         '-y',
         parsed.output
-      ], showProgress);
+      ], showProgress, totalBatches + 1, 0);
     }
 
     console.log('✅ Traitement par lots terminé');
+
+    // Créer le fichier lisible à la fin
+    this.saveReadableCommands();
+    console.log(`📄 Logs JSON sauvegardés: ${path.basename(this.logFilePath)}`);
   }
 
   /**
@@ -478,7 +594,7 @@ function executeFFmpegWithProgress() {
 }
 
 // Main execution
-console.log("🚀 Exécuteur de commande FFmpeg\n");
+console.log("🚀 Exécuteur de commande FFmpeg avec logging\n");
 
 const args = process.argv.slice(2);
 if (args.includes('--progress')) {
@@ -487,4 +603,9 @@ if (args.includes('--progress')) {
   executeFFmpegFromJSON();
 }
 
-console.log("\n💡 Utilisez --progress pour voir la progression en temps réel");
+console.log("\n💡 Options disponibles :");
+console.log("  --progress : Affiche la progression en temps réel");
+console.log("  --debug ou --show-commands : Affiche les commandes détaillées et l'échappement");
+console.log("\n📄 Les commandes exécutées seront automatiquement loggées dans :");
+console.log("  - ffmpeg-commands-log-[timestamp].json (format JSON)");
+console.log("  - ffmpeg-commands-log-[timestamp].txt (format lisible)");
