@@ -57,8 +57,7 @@ jobs:
 
       - name: Apply drawtext with Impact
         run: |
-          set FONT_PATH=C:\Windows\Fonts\Impact.ttf
-          ffmpeg -i test/input.png -frames:v 1 -vf "drawtext=fontfile='%FONT_PATH%':text='TEST IMPACT':x=(w-text_w)/2:y=(h-text_h)/2:fontsize=48:fontcolor=red" test/output.png
+          ffmpeg -i test/input.png -frames:v 1 -vf "drawtext=fontfile='C\\:\\Windows\\Fonts\\impact.ttf':text='TEST IMPACT':x=(w-text_w)/2:y=(h-text_h)/2:fontsize=48:fontcolor=red:borderw=2:bordercolor=black" test/output.png
 
       - name: Upload result
         uses: actions/upload-artifact@v4
