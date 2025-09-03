@@ -1,0 +1,17 @@
+name: Vérifier la police Impact
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-impact-font:
+    runs-on: windows-latest
+
+    steps:
+      - name: 📦 Checkout du repo
+        uses: actions/checkout@v4
+
+      - name: 🔎 Chercher la police Impact
+        run: |
+          echo "Recherche de la police Impact dans C:\Windows\Fonts..."
+          dir C:\Windows\Fonts\*Impact* /b
