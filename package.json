@@ -15,6 +15,7 @@
     "mix-audio": "ts-node scripts/mix-audio.ts",
     "contextual-emoji": "ts-node scripts/contextual-emoji.ts",
     "download-animated-emojis": "ts-node scripts/download-animated-emojis.ts",
+    "apply-emoji-ffmpeg": "ts-node scripts/apply-emoji-ffmpeg.ts",
     "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
     "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
     "send-email": "tsx scripts/send-email.tsx",
