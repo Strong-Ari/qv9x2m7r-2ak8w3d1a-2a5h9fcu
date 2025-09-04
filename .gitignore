@@ -49,6 +49,7 @@ public/ayanokoji-voice.mp3
 public/selected-clips.json
 public/ost.mp3
 public/ffmpeg-command.json
+public/subtitles-with-timecodes.json
 
 models/*
 !models/.gitkeep
