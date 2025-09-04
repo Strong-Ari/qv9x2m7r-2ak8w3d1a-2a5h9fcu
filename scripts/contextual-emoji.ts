@@ -148,6 +148,7 @@ async function main() {
     debugResults.push({
       index: i + 1,
       text: line.text,
+      start: line.start,
       emoji: resultEntry.emoji || null,
       reasoning: resultEntry.reasoning,
       confidence: resultEntry.confidence
