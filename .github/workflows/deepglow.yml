@@ -1,0 +1,24 @@
+name: Render DeepGlow Video
+
+on:
+  workflow_dispatch:
+
+jobs:
+  render-glow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Run DeepGlow command
+        run: |
+          ffmpeg -i input.mp4 -filter_complex "[0:v]drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf:text='MON TEXTE':fontsize=72:fontcolor=white:x=W-tw-100:y=H-th-150,split=4[txt][blur1][blur2][blur3];[blur1]boxblur=8:3,format=yuva420p,colorchannelmixer=aa=0.5[glow1];[blur2]boxblur=15:6,format=yuva420p,colorchannelmixer=aa=0.35[glow2];[blur3]boxblur=25:10,format=yuva420p,colorchannelmixer=aa=0.2[glow3];[0:v][glow1]overlay=0:0[bg1];[bg1][glow2]overlay=0:0[bg2];[bg2][glow3]overlay=0:0[bg3];[bg3][txt]overlay=0:0" -c:v libx264 -preset fast -crf 18 -pix_fmt yuv420p -c:a copy output.mp4
+
+      - name: Upload rendered video
+        uses: actions/upload-artifact@v4
+        with:
+          name: rendered-video
+          path: output.mp4
