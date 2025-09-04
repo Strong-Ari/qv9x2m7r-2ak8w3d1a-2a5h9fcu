@@ -47,9 +47,15 @@ async function processEmoji(emoji: string): Promise<void> {
     'ffmpeg',
     '-y',
     '-i', inputFile,
-    '-vf', 'scale=128:128:flags=lanczos,split[v1][v2];[v1]palettegen=reserve_transparent=true[palette];[v2][palette]paletteuse=alpha_threshold=128',
+    '-vf', [
+      'scale=164:164:flags=lanczos',
+      'format=rgba',
+      'split[a][b]',
+      '[a]palettegen=reserve_transparent=1:transparency_color=ffffff[p]',
+      '[b][p]paletteuse=alpha_threshold=128'
+    ].join(','),
     '-gifflags', '+transdiff',
-    '-c:v', 'gif',
+    '-filter:v', 'fps=30',
     outputFile
   ].join(' ');
 
@@ -71,12 +77,18 @@ async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp
   const endTime = timestamp + displayDuration;
   const fadeOutStart = endTime - fadeDuration;
 
-  const filterComplex = `[1:v]format=rgba,scale=128:128,fade=in:st=${startTime}:d=${fadeDuration}:alpha=1,fade=out:st=${fadeOutStart}:d=${fadeDuration}:alpha=1[anim];[0:v][anim]overlay=x='(W-w)/2':y='(H-h)/2':enable='between(t,${startTime},${endTime})'[v]`;
+  const filterComplex = [
+    '[1:v]format=rgba,colorkey=0xFFFFFF:0.1:0.2[ck]',
+    '[ck]scale=164:164:flags=lanczos[scaled]',
+    '[scaled]fade=in:st=' + startTime + ':d=' + fadeDuration + ':alpha=1,fade=out:st=' + fadeOutStart + ':d=' + fadeDuration + ':alpha=1[withfade]',
+    '[0:v][withfade]overlay=x=W-w-100:y=H-h-100:shortest=1:format=auto:enable=\'between(t,' + startTime + ',' + endTime + ')\'[v]'
+  ].join(';');
 
   const command = [
     'ffmpeg',
     '-y',
     '-i', videoPath,
+    '-ignore_loop', '0',
     '-i', emojiPath,
     '-filter_complex', `"${filterComplex}"`,
     '-map', '[v]',
@@ -84,6 +96,7 @@ async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp
     '-c:v', 'libx264',
     '-preset', 'fast',
     '-crf', '18',
+    '-pix_fmt', 'yuv420p',
     '-c:a', 'copy',
     outputPath
   ].join(' ');
