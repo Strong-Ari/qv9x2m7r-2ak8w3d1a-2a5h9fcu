@@ -50,6 +50,7 @@ public/selected-clips.json
 public/ost.mp3
 public/ffmpeg-command.json
 public/subtitles-with-timecodes.json
+public/output-with-emojis.json
 
 models/*
 !models/.gitkeep

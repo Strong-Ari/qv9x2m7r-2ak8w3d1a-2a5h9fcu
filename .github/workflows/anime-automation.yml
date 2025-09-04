@@ -24,6 +24,9 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_TO: ${{ secrets.RESEND_TO }}
 
+      # Hugging Face
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+
     steps:
       - name: 🔍 Inventaire outils pré-installés
         run: |

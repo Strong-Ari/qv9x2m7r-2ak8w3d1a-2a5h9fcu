@@ -14,6 +14,9 @@ interface SubtitleLine {
 
 interface SubtitleWithEmoji extends SubtitleLine {
   emoji?: string;
+  translatedText?: string;
+  bestScore?: number;
+  allScores?: { label: string; score: number }[];
 }
 
 async function main() {
@@ -30,6 +33,13 @@ async function main() {
 
   const rawData = fs.readFileSync(resolvedPath, "utf-8");
   const subtitles: SubtitleLine[] = JSON.parse(rawData);
+
+  // Pipeline de traduction français -> anglais
+  console.log("🌍 Chargement du modèle de traduction...");
+  const translator = await pipeline(
+    "translation",
+    "Xenova/opus-mt-fr-en"
+  );
 
   // Pipeline zero-shot classification avec le modèle original
   console.log("🤖 Chargement du modèle BART (peut prendre quelques minutes au premier lancement)...");
@@ -500,41 +510,132 @@ async function main() {
     "White-flag"
 ];
 
-  const results: SubtitleWithEmoji[] = [];
+  // Fonction pour nettoyer le texte
+  function cleanText(text: string): string {
+    return text
+      .replace(/[«»]/g, '"')           // Guillemets français -> anglais
+      .replace(/['']/g, "'")           // Apostrophes typographiques -> normales
+      .replace(/[–—]/g, "-")           // Tirets longs -> tirets normaux
+      .replace(/…/g, "...")            // Points de suspension
+      .replace(/\u00A0/g, " ")         // Espaces insécables -> espaces normaux
+      .replace(/\s+/g, " ")            // Espaces multiples -> espace simple
+      .trim();
+  }
 
-  for (const line of subtitles) {
+  const results: SubtitleWithEmoji[] = [];
+  const debugResults: any[] = [];
+
+  console.log(`📊 Analyse de ${subtitles.length} sous-titres...`);
+
+  for (let i = 0; i < subtitles.length; i++) {
+    const line = subtitles[i];
+
     // Vérifier que le texte n'est pas vide
     if (!line.text || line.text.trim() === '') {
-      console.warn(`⚠️ Ligne ignorée (texte vide): ${JSON.stringify(line)}`);
+      console.warn(`⚠️ Ligne ${i+1} ignorée (texte vide): ${JSON.stringify(line)}`);
       results.push({ ...line });
       continue;
     }
 
-    console.log(`🔍 Analyse: "${line.text}"`);
-    const output = await classifier(line.text, candidateEmojis);
+    // Nettoyer le texte français
+    const cleanedText = cleanText(line.text);
+    console.log(`\n🔍 [${i+1}/${subtitles.length}] Analyse: "${cleanedText}"`);
 
-    // @ts-ignore Xenova types pas encore complets
-    const { labels, scores } = output;
+    try {
+      // Traduire en anglais
+      // @ts-ignore
+      const translationResult = await translator(cleanedText);
+      // @ts-ignore
+      const translatedText = translationResult[0].translation_text;
+      console.log(`🌍 Traduit: "${translatedText}"`);
 
-    // Seuil pour décider si un emoji est pertinent
-    const threshold = 0.4;
-    const bestScore = scores[0];
-    const bestEmoji = labels[0];
+      // Analyser avec le modèle de classification
+      const output = await classifier(translatedText, candidateEmojis);
 
-    if (bestScore >= threshold) {
-      results.push({ ...line, emoji: bestEmoji });
-    } else {
+      // @ts-ignore Xenova types pas encore complets
+      const { labels, scores } = output;
+
+      // Créer un tableau des 5 meilleurs résultats pour debug
+      const topResults = labels.slice(0, 5).map((label: string, idx: number) => ({
+        label,
+        score: parseFloat(scores[idx].toFixed(4))
+      }));
+
+      console.log(`📈 Top 3: ${topResults.slice(0, 3).map((r: any) => `${r.label}(${r.score})`).join(', ')}`);
+
+      // Seuil plus bas pour avoir plus d'emojis
+      const threshold = 0.15;
+      const bestScore = scores[0];
+      const bestEmoji = labels[0];
+
+      const resultEntry: SubtitleWithEmoji = {
+        ...line,
+        translatedText,
+        bestScore: parseFloat(bestScore.toFixed(4)),
+        allScores: topResults
+      };
+
+      if (bestScore >= threshold) {
+        resultEntry.emoji = bestEmoji;
+        console.log(`✅ Emoji sélectionné: ${bestEmoji} (${bestScore.toFixed(4)})`);
+      } else {
+        console.log(`❌ Aucun emoji (score trop bas: ${bestScore.toFixed(4)})`);
+      }
+
+      results.push(resultEntry);
+
+      // Données de debug
+      debugResults.push({
+        index: i + 1,
+        originalText: line.text,
+        cleanedText,
+        translatedText,
+        selectedEmoji: resultEntry.emoji || null,
+        threshold,
+        topScores: topResults
+      });
+
+    } catch (error) {
+      console.error(`❌ Erreur lors de l'analyse de "${cleanedText}":`, error);
       results.push({ ...line });
     }
   }
 
-  const outputPath = path.join(
-    "public",
-    "output-with-emojis.json"
-  );
-
+  // Sauvegarder les résultats
+  const outputPath = path.join("public", "output-with-emojis.json");
   fs.writeFileSync(outputPath, JSON.stringify(results, null, 2), "utf-8");
   console.log(`✅ Fichier généré : ${outputPath}`);
+
+  // Sauvegarder les données de debug
+  const debugPath = path.join("public", "emoji-analysis-debug.json");
+  const debugData = {
+    metadata: {
+      totalSubtitles: subtitles.length,
+      emojisAssigned: results.filter(r => r.emoji).length,
+      threshold: 0.15,
+      model: "Xenova/bart-large-mnli",
+      translator: "Xenova/opus-mt-fr-en",
+      timestamp: new Date().toISOString()
+    },
+    results: debugResults
+  };
+
+  fs.writeFileSync(debugPath, JSON.stringify(debugData, null, 2), "utf-8");
+  console.log(`🐛 Fichier de debug généré : ${debugPath}`);
+
+  // Statistiques finales
+  const emojisCount = results.filter(r => r.emoji).length;
+  console.log(`\n📊 Statistiques finales :`);
+  console.log(`- Sous-titres analysés : ${subtitles.length}`);
+  console.log(`- Emojis assignés : ${emojisCount} (${((emojisCount/subtitles.length)*100).toFixed(1)}%)`);
+  console.log(`- Seuil utilisé : 0.15`);
+
+  if (emojisCount > 0) {
+    console.log(`\n🎯 Exemples d'emojis assignés :`);
+    results.filter(r => r.emoji).slice(0, 3).forEach((r, i) => {
+      console.log(`  ${i+1}. "${r.text}" → ${r.emoji} (${r.bestScore})`);
+    });
+  }
 }
 
 main().catch((err) => {
