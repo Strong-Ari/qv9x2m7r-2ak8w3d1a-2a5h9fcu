@@ -134,6 +134,36 @@ jobs:
 
           Write-Host "✅ 7z opérationnel !"
 
+      - name: Générer LOGIN_HASH
+        env:
+          METRICOOL_EMAIL: ${{ secrets.METRICOOL_EMAIL }}
+          METRICOOL_PASSWORD: ${{ secrets.METRICOOL_PASSWORD }}
+        run: |
+          LOGIN_HASH=$(npx tsx scripts/generate-login-hash.ts | cut -d '=' -f 2)
+          echo "LOGIN_HASH=$LOGIN_HASH" >> $GITHUB_ENV
+
+      - name: 💾 Restaurer le cookie Playwright
+        uses: actions/cache@v4
+        id: cookie-cache
+        with:
+          path: |
+            cookies.json
+            cookies.meta.json
+          key: playwright-cookie-${{ runner.os }}-${{ env.LOGIN_HASH }}
+
+
+      - name: 💾 Cache des navigateurs Playwright (Windows)
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: C:\Users\runneradmin\.cache\ms-playwright
+          key: playwright-${{ runner.os }}
+
+      - name: 🌐 Installer les navigateurs Playwright
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npm exec playwright install --with-deps
+
+
       # === Téléchargement depuis releases privées avec GitHub API ===
       - name: 🔑 Récupérer les URLs des releases privées
         id: get-release-urls
@@ -412,14 +442,23 @@ jobs:
       - name: 🔊 Étape 10 - Mixage audio
         run: npm run mix-audio
 
-      # # === Upload & publication ===
-      # - name: ☁️ Upload Cloudinary
-      #   run: npm run upload-to-cloudinary
+      - name: 🤖 Étape 11 - Analyse contexte pour emojis
+        run: npm run contextual-emoji
 
-      # - name: 📱 Publication TikTok
-      #   run: npm run put-to-tiktok
-      #   env:
-      #     CHROMIUM_FLAGS: "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor"
+      - name: ⬇️ Étape 12 - Télécharger emojis animés
+        run: npm run download-animated-emojis
+
+      - name: 😃 Étape 13 - Appliquer emojis animés sur la vidéo
+        run: npm run apply-emoji-ffmpeg
+
+      # === Upload & publication ===
+      - name: ☁️ Upload Cloudinary
+        run: npm run upload-to-cloudinary
+
+      - name: 📱 Publication TikTok
+        run: npm run put-to-tiktok
+        env:
+          CHROMIUM_FLAGS: "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor"
 
       # === Artifacts ===
       - name: 💾 Sauvegarde vidéo finale
@@ -485,3 +524,17 @@ jobs:
           if (Test-Path temp) { Remove-Item -Recurse -Force temp }
           if (Test-Path cache) { Remove-Item -Recurse -Force cache }
           Get-ChildItem -Recurse -Include *.tmp, *.temp -ErrorAction SilentlyContinue | Remove-Item -Force
+
+      - name: 💾 Sauvegarder le cookie Playwright
+        uses: actions/cache@v4
+        with:
+          path: |
+            cookies.json
+            cookies.meta.json
+          key: playwright-cookie-${{ runner.os }}-${{ env.LOGIN_HASH }}
+
+      - name: 💾 Sauvegarder le cache des navigateurs Playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}

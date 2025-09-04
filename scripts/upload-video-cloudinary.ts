@@ -10,7 +10,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const localVideoPath = path.join(process.cwd(), "output_final.mp4");
+const localVideoPath = path.join(process.cwd(), "output_with_emojis.mp4");
 const linkFilePath = path.join(process.cwd(), "cloudinary-link.txt");
 
 async function uploadVideo() {
@@ -24,7 +24,7 @@ async function uploadVideo() {
   try {
     const result = await cloudinary.uploader.upload(localVideoPath, {
       resource_type: "video",
-      public_id: "BallEscape",
+      public_id: "AnimeVideo",
     });
 
     console.log("✅ Upload réussi !");

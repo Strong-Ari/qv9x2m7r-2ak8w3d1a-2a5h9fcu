@@ -18,6 +18,7 @@
     "apply-emoji-ffmpeg": "ts-node scripts/apply-emoji-ffmpeg.ts",
     "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
     "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
+    "generate-login-hash": "ts-node scripts/generate-login-hash.ts",
     "send-email": "tsx scripts/send-email.tsx",
     "build-email": "tsx email/TikTokReport.tsx",
     "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
