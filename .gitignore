@@ -51,6 +51,7 @@ public/ost.mp3
 public/ffmpeg-command.json
 public/subtitles-with-timecodes.json
 public/output-with-emojis.json
+public/emoji-analysis-debug.json
 
 models/*
 !models/.gitkeep
