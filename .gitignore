@@ -66,3 +66,5 @@ output_final.mp4
 cookies.json
 cookies.meta.json
 screenshots/
+
+ffmpeg_command.txt

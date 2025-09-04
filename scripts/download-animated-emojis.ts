@@ -45,21 +45,21 @@ function checkIfFileExists(fileName: string, downloadDir: string): boolean {
 async function waitForPageLoad(page: Page): Promise<void> {
   // Attendre que la page soit complètement chargée
   await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(500);
 }
 
 async function searchEmoji(page: Page, emojiName: string): Promise<boolean> {
   try {
     // Attendre que la barre de recherche soit disponible et visible
     const searchInput = page.locator('input[placeholder="Find Emoji"]');
-    await searchInput.waitFor({ state: 'visible', timeout: 10000 });
+    await searchInput.waitFor({ state: 'visible', timeout: 5000 });
 
-    // Vider et remplir la barre de recherche
-    await searchInput.click();
-    await searchInput.fill('');
-    await page.waitForTimeout(500);
-    await searchInput.fill(emojiName);
-    await page.waitForTimeout(2000);
+    // Vider et remplir la barre de recherche en une seule opération
+    await Promise.all([
+      searchInput.click(),
+      searchInput.fill(emojiName)
+    ]);
+    await page.waitForTimeout(300);
 
     console.log(`   🔍 Recherche pour: ${emojiName}`);
     return true;
@@ -71,25 +71,21 @@ async function searchEmoji(page: Page, emojiName: string): Promise<boolean> {
 
 async function selectFirstEmoji(page: Page): Promise<boolean> {
   try {
-    // Attendre que les résultats apparaissent et sélectionner le premier emoji enabled
-    await page.waitForTimeout(2000);
+    // Attendre un court instant pour les résultats
+    await page.waitForTimeout(300);
 
-    // Chercher tous les boutons emoji et prendre le premier qui est enabled
-    const emojiButtons = page.locator('button[icon-item]');
-    const count = await emojiButtons.count();
+    // Utiliser un sélecteur plus précis pour le premier emoji visible et enabled
+    const firstEmojiButton = page.locator('button[icon-item]:visible:not([disabled])').first();
 
-    console.log(`   📊 ${count} emojis trouvés`);
-
-    for (let i = 0; i < count; i++) {
-      const button = emojiButtons.nth(i);
-      const isEnabled = await button.isEnabled();
-      const isVisible = await button.isVisible();
-
-      if (isEnabled && isVisible) {
-        console.log(`   👆 Clic sur l'emoji ${i + 1}`);
-        await button.click();
-        return true;
-      }
+    try {
+      await firstEmojiButton.waitFor({ state: 'visible', timeout: 3000 });
+      await firstEmojiButton.click();
+      console.log(`   👆 Clic sur le premier emoji trouvé`);
+      return true;
+    } catch (error) {
+      console.log(`   ⚠️ Pas d'emoji trouvé, tentative avec force click`);
+      await firstEmojiButton.click({ force: true });
+      return true;
     }
 
     // Si aucun bouton enabled trouvé, essayer avec une approche différente
@@ -109,13 +105,12 @@ async function selectFirstEmoji(page: Page): Promise<boolean> {
 
 async function waitForSidebar(page: Page): Promise<boolean> {
   try {
-    // Attendre que la sidebar s'ouvre complètement
-    const sidebar = page.locator('mat-sidenav[role="dialog"].mat-drawer-opened');
-    await sidebar.waitFor({ state: 'visible', timeout: 15000 });
-
-    // Attendre aussi que le contenu soit chargé
-    const gifButton = page.locator('a.side-nav-links__button--gif:has-text("GIF")');
-    await gifButton.waitFor({ state: 'visible', timeout: 10000 });
+    const [sidebar, gifButton] = await Promise.all([
+      page.locator('mat-sidenav[role="dialog"].mat-drawer-opened')
+        .waitFor({ state: 'visible', timeout: 5000 }),
+      page.locator('a.side-nav-links__button--gif:has-text("GIF")')
+        .waitFor({ state: 'visible', timeout: 5000 })
+    ]);
 
     console.log(`   ✅ Sidebar ouverte et bouton GIF disponible`);
     return true;
@@ -172,7 +167,7 @@ async function downloadEmojis(): Promise<void> {
   try {
     browser = await chromium.launch({
       headless: false,
-      slowMo: 500 // Ralentir les actions pour plus de stabilité
+      slowMo: 100 // Légère temporisation pour la stabilité
     });
 
     // Créer le dossier de téléchargement s'il n'existe pas
@@ -194,7 +189,7 @@ async function downloadEmojis(): Promise<void> {
 
     // Charger les données d'emojis depuis le fichier JSON
     const emojiTimestamps = await loadEmojiData();
-    const uniqueEmojis = [...new Set(emojiTimestamps.map(item => item.emoji))];
+    const uniqueEmojis = Array.from(new Set(emojiTimestamps.map(item => item.emoji)));
     console.log(`📦 ${uniqueEmojis.length} emojis uniques à télécharger`);
 
     // Aller sur la page principale une seule fois
