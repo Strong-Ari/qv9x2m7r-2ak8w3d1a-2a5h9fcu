@@ -53,15 +53,30 @@ async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp
   // Variation aléatoire de ±30 pixels
   const randomOffset = () => Math.floor(Math.random() * 61) - 30; // -30 à +30
 
-  // Alterner entre les deux zones focales et ajouter une variation aléatoire
-  const isRightSide = index % 2 === 0;
-  const baseX = isRightSide ? 'W-w-80' : '50';
-  const baseY = isRightSide ? 'H-h-200' : 'H-h-310';
+  // Alterner entre les trois zones focales et ajouter une variation aléatoire
+  const zone = index % 3; // 0, 1 ou 2
+  let baseX: string, baseY: string;
+
+  // Position par défaut (à droite)
+  baseX = 'W-w-100';
+  baseY = 'H-h-200';
+
+  if (zone === 0) { // Gauche
+    baseX = '90';
+    baseY = 'H-h-320';
+  } else if (zone === 1) { // Centre
+    baseX = 'W/2-w/2';
+    baseY = 'H-h-420';
+  }
+
   const position = `x=${baseX}+${randomOffset()}:y=${baseY}+${randomOffset()}`;
+
+  // Taille différente selon la position
+  const emojiSize = zone === 1 ? '300:300' : '145:145';
 
   const filterComplex = [
     '[1:v]format=rgba[fmt]',
-    '[fmt]scale=164:164[scaled]',
+    `[fmt]scale=${emojiSize}[scaled]`,
     '[scaled]fade=in:st=' + startTime + ':d=' + fadeDuration + ':alpha=1,fade=out:st=' + fadeOutStart + ':d=' + fadeDuration + ':alpha=1[withfade]',
     '[0:v][withfade]overlay=' + position + ':shortest=1:enable=\'between(t,' + startTime + ',' + endTime + ')\'[v]'
   ].join(';');
