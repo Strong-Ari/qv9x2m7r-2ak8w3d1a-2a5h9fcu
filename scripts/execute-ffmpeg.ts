@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { exec, spawn } from "child_process";
 import { promisify } from "util";
 
@@ -34,17 +35,150 @@ interface CommandLog {
   subtitleCount: number;
   success: boolean;
   error?: string;
+  fontPath?: string;
+}
+
+interface FontConfig {
+  path: string;
+  name: string;
+  available: boolean;
 }
 
 class BatchFFmpegProcessor {
   private tempFiles: string[] = [];
   private commandLogs: CommandLog[] = [];
   private logFilePath: string;
+  private fontConfig: FontConfig;
 
   constructor() {
     // Créer le nom du fichier de log avec timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     this.logFilePath = path.join(process.cwd(), `ffmpeg-commands-log-${timestamp}.json`);
+
+    // Initialiser la configuration des polices
+    this.fontConfig = this.detectFontConfiguration();
+    console.log(`🔤 Police détectée: ${this.fontConfig.name} (${this.fontConfig.available ? 'disponible' : 'indisponible'})`);
+    console.log(`📁 Chemin de la police: ${this.fontConfig.path}`);
+  }
+
+  /**
+   * Détecter la configuration des polices selon l'environnement
+   */
+  private detectFontConfiguration(): FontConfig {
+    const platform = os.platform();
+
+    // Configuration pour Windows
+    if (platform === 'win32') {
+      const windowsPaths = [
+        'C:/Windows/Fonts/Impact.ttf',
+        'C:\\Windows\\Fonts\\Impact.ttf',
+        path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'Impact.ttf')
+      ];
+
+      for (const fontPath of windowsPaths) {
+        if (fs.existsSync(fontPath.replace(/\//g, path.sep))) {
+          return {
+            path: fontPath.replace(/\\/g, '/').replace('C:', 'C\\:'), // Format FFmpeg pour Windows
+            name: 'Impact',
+            available: true
+          };
+        }
+      }
+
+      // Fallback pour Windows avec échappement correct
+      return {
+        path: 'C\\:/Windows/Fonts/Impact.ttf',
+        name: 'Impact (assumé)',
+        available: false // On assume qu'elle existe même si on ne peut pas la vérifier
+      };
+    }
+
+    // Configuration pour macOS
+    if (platform === 'darwin') {
+      const macPaths = [
+        '/System/Library/Fonts/Impact.ttc',
+        '/Library/Fonts/Impact.ttf',
+        '/System/Library/Fonts/Helvetica.ttc'
+      ];
+
+      for (const fontPath of macPaths) {
+        if (fs.existsSync(fontPath)) {
+          return {
+            path: fontPath,
+            name: path.basename(fontPath, path.extname(fontPath)),
+            available: true
+          };
+        }
+      }
+
+      return {
+        path: '/System/Library/Fonts/Helvetica.ttc',
+        name: 'Helvetica (fallback)',
+        available: false
+      };
+    }
+
+    // Configuration pour Linux
+    const linuxPaths = [
+      '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+      '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',
+      '/usr/share/fonts/TTF/DejaVuSans-Bold.ttf',
+      '/usr/share/fonts/truetype/ubuntu/Ubuntu-Bold.ttf'
+    ];
+
+    for (const fontPath of linuxPaths) {
+      if (fs.existsSync(fontPath)) {
+        return {
+          path: fontPath,
+          name: path.basename(fontPath, path.extname(fontPath)),
+          available: true
+        };
+      }
+    }
+
+    return {
+      path: '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+      name: 'Liberation Sans (assumé)',
+      available: false
+    };
+  }
+
+  /**
+   * Vérifier si FFmpeg peut accéder à la police
+   */
+  private async testFontAccess(): Promise<boolean> {
+    return new Promise((resolve) => {
+      const testArgs = [
+        '-f', 'lavfi',
+        '-i', 'color=black:size=100x100:duration=1',
+        '-vf', `drawtext=fontfile='${this.fontConfig.path}':text='test':x=10:y=10:fontsize=12:fontcolor=white`,
+        '-f', 'null',
+        '-'
+      ];
+
+      const ffmpeg = spawn('ffmpeg', testArgs, {
+        stdio: ['ignore', 'ignore', 'pipe']
+      });
+
+      let stderrData = '';
+      ffmpeg.stderr?.on('data', (data) => {
+        stderrData += data.toString();
+      });
+
+      ffmpeg.on('close', (code) => {
+        const success = code === 0 && !stderrData.includes('No such file') && !stderrData.includes('cannot find');
+        if (!success) {
+          console.log(`⚠️ Test de police échoué: ${stderrData.substring(0, 200)}...`);
+        }
+        resolve(success);
+      });
+
+      // Timeout de 5 secondes pour le test
+      setTimeout(() => {
+        ffmpeg.kill();
+        resolve(false);
+      }, 5000);
+    });
   }
 
   /**
@@ -60,16 +194,15 @@ class BatchFFmpegProcessor {
     const log: CommandLog = {
       batchNumber,
       timestamp: new Date().toISOString(),
-      args: [...args], // Copy pour éviter les modifications
+      args: [...args],
       fullCommand: `ffmpeg ${args.join(' ')}`,
       subtitleCount,
       success,
-      error
+      error,
+      fontPath: this.fontConfig.path
     };
 
     this.commandLogs.push(log);
-
-    // Sauvegarder immédiatement dans le fichier
     this.saveCommandLogs();
   }
 
@@ -82,7 +215,9 @@ class BatchFFmpegProcessor {
         metadata: {
           totalBatches: this.commandLogs.length,
           timestamp: new Date().toISOString(),
-          logFile: path.basename(this.logFilePath)
+          logFile: path.basename(this.logFilePath),
+          platform: os.platform(),
+          fontConfig: this.fontConfig
         },
         commands: this.commandLogs
       };
@@ -101,12 +236,16 @@ class BatchFFmpegProcessor {
       const readablePath = this.logFilePath.replace('.json', '.txt');
       let content = `=== COMMANDES FFMPEG EXÉCUTÉES ===\n`;
       content += `Générées le: ${new Date().toLocaleString()}\n`;
+      content += `Plateforme: ${os.platform()}\n`;
+      content += `Police utilisée: ${this.fontConfig.name}\n`;
+      content += `Chemin de la police: ${this.fontConfig.path}\n`;
       content += `Total de lots: ${this.commandLogs.length}\n\n`;
 
       this.commandLogs.forEach((log, index) => {
         content += `--- LOT ${log.batchNumber} ---\n`;
         content += `Timestamp: ${new Date(log.timestamp).toLocaleString()}\n`;
         content += `Sous-titres: ${log.subtitleCount}\n`;
+        content += `Police: ${log.fontPath}\n`;
         content += `Statut: ${log.success ? '✅ SUCCÈS' : '❌ ÉCHEC'}\n`;
         if (log.error) {
           content += `Erreur: ${log.error}\n`;
@@ -179,15 +318,14 @@ class BatchFFmpegProcessor {
 
       if (arg === '-i' && i + 1 < args.length) {
         input = args[i + 1];
-        i++; // Skip next argument
+        i++;
       } else if (arg === '-vf' && i + 1 < args.length) {
         videoFilters = args[i + 1];
-        i++; // Skip next argument
+        i++;
       } else if (arg === '-c:a' && i + 1 < args.length) {
         audioCodec = args[i + 1];
-        i++; // Skip next argument
+        i++;
       } else if (!arg.startsWith('-') && !input && !output) {
-        // Could be input or output
         if (fs.existsSync(arg)) {
           input = arg;
         } else {
@@ -200,7 +338,6 @@ class BatchFFmpegProcessor {
       }
     }
 
-    // Try to find output in the last argument if not found
     if (!output && args.length > 0) {
       const lastArg = args[args.length - 1];
       if (!lastArg.startsWith('-') && lastArg !== input) {
@@ -212,22 +349,26 @@ class BatchFFmpegProcessor {
   }
 
   /**
-   * Parse drawtext filters to extract subtitle data
+   * Parse drawtext filters to extract subtitle data et mettre à jour le chemin de police
    */
   parseDrawtextFilters(videoFilters: string): SubtitleEntry[] {
     const subtitles: SubtitleEntry[] = [];
 
-    // Amélioration du parsing pour gérer les caractères spéciaux
+    // Mettre à jour les chemins de police dans les filtres
+    const updatedFilters = videoFilters.replace(
+      /fontfile='?([^':\s]+)'?/g,
+      `fontfile='${this.fontConfig.path}'`
+    );
+
     const drawtextRegex = /drawtext=fontfile='([^']+)':text='([^']*(?:\\.[^']*)*)':x=([^:]+):y=([^:]+):fontsize=([^:]+):fontcolor=([^:]+):enable='between\(t,([0-9.]+),([0-9.]+)\)'[^,]*(?:,|$)/g;
 
     let match;
-    while ((match = drawtextRegex.exec(videoFilters)) !== null) {
+    while ((match = drawtextRegex.exec(updatedFilters)) !== null) {
       try {
         let text = match[2];
-        // Nettoyer le texte des échappements
         text = text.replace(/\\'/g, "'")
                   .replace(/\\,/g, ",")
-                  .replace(/^\s+|\s+$/g, ''); // Trim spaces
+                  .replace(/^\s+|\s+$/g, '');
 
         const start = parseFloat(match[7]);
         const end = parseFloat(match[8]);
@@ -253,19 +394,17 @@ class BatchFFmpegProcessor {
   }
 
   /**
-   * Check if command needs batch processing (too many drawtext filters)
+   * Check if command needs batch processing
    */
   needsBatchProcessing(command: string): boolean {
     const drawtextCount = (command.match(/drawtext=/g) || []).length;
     const commandLength = command.length;
 
-    // Windows command line limit is around 8191 characters
-    // But we'll be conservative and batch if > 6000 chars or > 10 drawtext filters
     return commandLength > 6000 || drawtextCount > 10;
   }
 
   /**
-   * Generate drawtext filter for a batch of subtitles
+   * Generate drawtext filter for a batch of subtitles avec le bon chemin de police
    */
   private generateDrawtextBatch(subtitles: SubtitleEntry[]): string {
     const filters = subtitles.map(subtitle => {
@@ -273,27 +412,25 @@ class BatchFFmpegProcessor {
       const fontcolor = subtitle.fontcolor || 'white';
       const borderw = subtitle.borderw || 3;
 
-      // Nettoyer et échapper le texte
       const cleanText = subtitle.text.trim();
       if (!cleanText) return null;
 
-      // Échapper correctement le texte pour FFmpeg
       const escapedText = cleanText
-        .replace(/[«»]/g, '')         // Supprimer les guillemets français
-        .replace(/"/g, '')            // Supprimer les guillemets doubles
-        .replace(/'/g, "'")           // Apostrophe courbe → apostrophe droite
-        .replace(/\\/g, "\\\\")       // Échapper les backslashes (en premier)
-        .replace(/:/g, "\\:")         // Échapper les deux-points
-        .replace(/,/g, "\\,")         // Échapper les virgules
-        .replace(/\[/g, "\\[")        // Échapper les crochets
-        .replace(/\]/g, "\\]")        // Échapper les crochets
-        .replace(/\(/g, "\\(")        // Échapper les parenthèses
-        .replace(/\)/g, "\\)")        // Échapper les parenthèses
-        .replace(/;/g, "\\;")         // Échapper les points-virgules
-        .replace(/%/g, "\\%");        // Échapper les pourcentages
+        .replace(/[«»]/g, '')
+        .replace(/"/g, '')
+        .replace(/'/g, "'")
+        .replace(/\\/g, "\\\\")
+        .replace(/:/g, "\\:")
+        .replace(/,/g, "\\,")
+        .replace(/\[/g, "\\[")
+        .replace(/\]/g, "\\]")
+        .replace(/\(/g, "\\(")
+        .replace(/\)/g, "\\)")
+        .replace(/;/g, "\\;")
+        .replace(/%/g, "\\%");
 
-      // Construire le filtre avec le bon échappement
-      return `drawtext=fontfile=/Windows/Fonts/Impact.ttf:text='${escapedText}':x=(w-text_w)/2:y=h*0.8:fontsize=${fontsize}:fontcolor=${fontcolor}:enable='between(t\\,${subtitle.start}\\,${subtitle.end})':borderw=${borderw}:bordercolor=black:box=1:boxcolor=black@0.7:boxborderw=12`;
+      // Utiliser le chemin de police détecté automatiquement
+      return `drawtext=fontfile='${this.fontConfig.path}':text='${escapedText}':x=(w-text_w)/2:y=h*0.8:fontsize=${fontsize}:fontcolor=${fontcolor}:enable='between(t\\,${subtitle.start}\\,${subtitle.end})':borderw=${borderw}:bordercolor=black:box=1:boxcolor=black@0.7:boxborderw=12`;
     }).filter(filter => filter !== null);
 
     return filters.join(',');
@@ -313,9 +450,7 @@ class BatchFFmpegProcessor {
         console.log(`🎬 Exécution lot ${batchNumber}: ffmpeg ${args.join(' ')}`);
       }
 
-      // Nettoyer les arguments pour éviter les problèmes d'échappement
       const cleanArgs = args.map(arg => {
-        // Si l'argument contient des caractères spéciaux, s'assurer qu'il est bien formaté
         if (arg.includes('drawtext=') && arg.includes('text=')) {
           return arg;
         }
@@ -351,7 +486,6 @@ class BatchFFmpegProcessor {
         const success = code === 0;
         const error = success ? undefined : `Code ${code}: ${stderrData}`;
 
-        // Enregistrer la commande dans les logs
         this.logCommand(batchNumber, args, subtitleCount, success, error);
 
         if (success) {
@@ -383,18 +517,32 @@ class BatchFFmpegProcessor {
 
     console.log(`📝 Logs seront sauvegardés dans: ${path.basename(this.logFilePath)}`);
 
-    // Vérifier si le traitement par lots est nécessaire
+    // Tester l'accès à la police si possible
+    if (showProgress) {
+      console.log('🔍 Test d\'accès à la police...');
+      const fontAccessible = await this.testFontAccess();
+      console.log(`🔤 Police accessible: ${fontAccessible ? '✅ Oui' : '⚠️ Non (utilisation en mode assumé)'}`);
+    }
+
     if (this.needsBatchProcessing(command)) {
       console.log('📦 Commande trop longue détectée, utilisation du traitement par lots automatiquement');
       await this.processByBatches(command, 8, showProgress);
       return;
     }
 
-    // Essayer d'abord avec la commande simple
     try {
       console.log('🎬 Tentative d\'exécution directe...');
       const args = this.parseCommandLine(command.replace(/^ffmpeg\s+/, ''));
-      await this.executeFFmpegCommand(args, showProgress, 1, 0);
+
+      // Mettre à jour les chemins de police dans les arguments
+      const updatedArgs = args.map(arg => {
+        if (arg.includes('fontfile=') && arg.includes('/Windows/Fonts/')) {
+          return arg.replace(/fontfile='?([^':\s]+)'?/g, `fontfile='${this.fontConfig.path}'`);
+        }
+        return arg;
+      });
+
+      await this.executeFFmpegCommand(updatedArgs, showProgress, 1, 0);
       console.log('✅ Exécution directe réussie');
     } catch (error) {
       console.log('❌ Échec de l\'exécution directe, passage au traitement par lots...');
@@ -418,7 +566,6 @@ class BatchFFmpegProcessor {
 
     if (subtitles.length === 0) {
       console.log('⚠️ Aucun sous-titre trouvé, tentative d\'exécution normale...');
-      // Essayer d'exécuter la commande originale
       const args = this.parseCommandLine(command.replace(/^ffmpeg\s+/, ''));
       await this.executeFFmpegCommand(args, showProgress, 1, 0);
       return;
@@ -475,8 +622,6 @@ class BatchFFmpegProcessor {
     }
 
     console.log('✅ Traitement par lots terminé');
-
-    // Créer le fichier lisible à la fin
     this.saveReadableCommands();
     console.log(`📄 Logs JSON sauvegardés: ${path.basename(this.logFilePath)}`);
   }
@@ -526,15 +671,12 @@ async function executeFFmpegFromJSON() {
     console.log("\n⏳ Début de l'exécution...\n");
 
     const startTime = Date.now();
-
-    // Utiliser la nouvelle méthode processCommand qui gère automatiquement le fallback
     await batchProcessor.processCommand(data.command, false);
 
     const executionTime = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log("✅ Exécution terminée avec succès !");
     console.log(`⏱️ Temps d'exécution : ${executionTime} secondes`);
 
-    // Check output file
     const outputMatch = data.command.match(/["\']([^"']*\.mp4)["\'](?:\s|$)/);
     if (outputMatch) {
       const outputPath = outputMatch[1];
@@ -575,7 +717,6 @@ function executeFFmpegWithProgress() {
     console.log(data.command.substring(0, 200) + '...');
     console.log("\n⏳ Début de l'exécution...\n");
 
-    // Utiliser la nouvelle méthode processCommand avec progression
     batchProcessor.processCommand(data.command, true)
       .then(() => {
         console.log('\n✅ Exécution terminée avec succès !');
@@ -594,7 +735,7 @@ function executeFFmpegWithProgress() {
 }
 
 // Main execution
-console.log("🚀 Exécuteur de commande FFmpeg avec logging\n");
+console.log("🚀 Exécuteur de commande FFmpeg avec support multi-plateforme\n");
 
 const args = process.argv.slice(2);
 if (args.includes('--progress')) {
@@ -605,7 +746,7 @@ if (args.includes('--progress')) {
 
 console.log("\n💡 Options disponibles :");
 console.log("  --progress : Affiche la progression en temps réel");
-console.log("  --debug ou --show-commands : Affiche les commandes détaillées et l'échappement");
-console.log("\n📄 Les commandes exécutées seront automatiquement loggées dans :");
-console.log("  - ffmpeg-commands-log-[timestamp].json (format JSON)");
-console.log("  - ffmpeg-commands-log-[timestamp].txt (format lisible)");
+console.log("\n📄 Les commandes exécutées seront automatiquement loggées avec :");
+console.log("  - Détection automatique de la plateforme et des polices");
+console.log("  - Test d'accessibilité des polices");
+console.log("  - Chemins de police corrigés automatiquement");
