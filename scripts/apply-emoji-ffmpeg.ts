@@ -43,14 +43,14 @@ async function processEmoji(emoji: string): Promise<void> {
   const inputFile = path.join('emojis', `${emoji}.gif`);
   const outputFile = path.join('emojis', `${emoji}_processed.gif`);
 
-  // Convertir le GIF pour qu'il ne joue qu'une seule fois et soit redimensionné
   const command = [
     'ffmpeg',
     '-y',
-    '-i', `"${inputFile}"`,
-    '-vf', '"loop=1:1:0,scale=64:64:flags=lanczos"',
+    '-i', inputFile,
+    '-vf', 'scale=128:128:flags=lanczos,split[v1][v2];[v1]palettegen=reserve_transparent=true[palette];[v2][palette]paletteuse=alpha_threshold=128',
+    '-gifflags', '+transdiff',
     '-c:v', 'gif',
-    `"${outputFile}"`
+    outputFile
   ].join(' ');
 
   try {
@@ -62,18 +62,30 @@ async function processEmoji(emoji: string): Promise<void> {
 }
 
 async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp: number, outputPath: string): Promise<void> {
+  // Calculer les timestamps pour l'animation
+  const fadeDuration = 0.5; // Durée du fade in/out
+  const scaleDuration = 0.3; // Durée de l'animation de scale
+  const displayDuration = 3; // Durée totale d'affichage
+
+  const startTime = timestamp;
+  const endTime = timestamp + displayDuration;
+  const fadeOutStart = endTime - fadeDuration;
+
+  const filterComplex = `[1:v]format=rgba,scale=128:128,fade=in:st=${startTime}:d=${fadeDuration}:alpha=1,fade=out:st=${fadeOutStart}:d=${fadeDuration}:alpha=1[anim];[0:v][anim]overlay=x='(W-w)/2':y='(H-h)/2':enable='between(t,${startTime},${endTime})'[v]`;
+
   const command = [
     'ffmpeg',
     '-y',
-    '-i', `"${videoPath}"`,
-    '-i', `"${emojiPath}"`,
-    '-filter_complex',
-    `"[1]format=rgba[emoji];[0][emoji]overlay=x=W-w-20:y=20:enable='between(t,${timestamp},${timestamp+3})'"`,
+    '-i', videoPath,
+    '-i', emojiPath,
+    '-filter_complex', `"${filterComplex}"`,
+    '-map', '[v]',
+    '-map', '0:a',
     '-c:v', 'libx264',
     '-preset', 'fast',
     '-crf', '18',
     '-c:a', 'copy',
-    `"${outputPath}"`
+    outputPath
   ].join(' ');
 
   try {
