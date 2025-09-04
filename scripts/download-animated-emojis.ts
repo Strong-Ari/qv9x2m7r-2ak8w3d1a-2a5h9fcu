@@ -267,88 +267,8 @@ async function downloadEmojis(): Promise<void> {
       await browser.close();
     }
   }
-
-  // Générer la commande FFmpeg
-  await generateFFmpegCommand();
 }
 
-async function generateFFmpegCommand(): Promise<void> {
-  console.log('\n🔧 Génération de la commande FFmpeg...');
-
-  try {
-    const emojiTimestamps = await loadEmojiData();
-    const downloadDir = path.join(__dirname, 'emojis');
-
-    const filterComplexParts: string[] = [];
-    const overlayParts: string[] = [];
-    let inputIndex = 1; // Index 0 sera pour la vidéo principale
-
-    // Créer les inputs et filtres pour chaque emoji
-    const inputs: string[] = ['-i output_final.mp4']; // Vidéo principale
-
-    // Filtrer les emojis qui ont effectivement été téléchargés
-    const availableEmojis = emojiTimestamps.filter(item => {
-      const fileName = `${item.emoji}.gif`;
-      return checkIfFileExists(fileName, downloadDir);
-    });
-
-    console.log(`📊 ${availableEmojis.length} emojis disponibles pour l'intégration`);
-
-    availableEmojis.forEach((item, index) => {
-      const fileName = path.join('emojis', `${item.emoji}.gif`);
-      inputs.push(`-i "${fileName}"`);
-
-      // Créer un filtre pour chaque GIF pour qu'il ne joue qu'une fois
-      filterComplexParts.push(
-        `[${inputIndex}]split=2[gif${index}a][gif${index}b];` +
-        `[gif${index}a]palettegen[palette${index}];` +
-        `[gif${index}b][palette${index}]paletteuse,loop=1:1:0,scale=64:64[gif${index}]`
-      );
-
-      inputIndex++;
-    });
-
-    // Créer la chaîne d'overlay
-    let currentStream = '[0]';
-    availableEmojis.forEach((item, index) => {
-      const nextStream = index === availableEmojis.length - 1 ? '[output]' : `[tmp${index}]`;
-      overlayParts.push(
-        `${currentStream}[gif${index}]overlay=x=W-w-20:y=20:enable='between(t,${item.start},${item.start + 3})'${nextStream}`
-      );
-      currentStream = `[tmp${index}]`;
-    });
-
-    // Construire la commande complète
-    const filterComplex = filterComplexParts.join('') + overlayParts.join(';');
-
-    const ffmpegCommand = [
-      'ffmpeg',
-      '-y', // Overwrite output file
-      ...inputs,
-      '-filter_complex',
-      `"${filterComplex}"`,
-      '-map "[output]"',
-      '-c:v libx264',
-      '-preset fast',
-      '-crf 18',
-      '-c:a copy',
-      'output_with_emojis.mp4'
-    ].join(' ');
-
-    console.log('\n📋 Commande FFmpeg générée:');
-    console.log('='.repeat(80));
-    console.log(ffmpegCommand);
-    console.log('='.repeat(80));
-
-    // Sauvegarder la commande dans un fichier
-    fs.writeFileSync('ffmpeg_command.txt', ffmpegCommand);
-    console.log('\n💾 La commande FFmpeg a été sauvegardée dans ffmpeg_command.txt');
-
-
-  } catch (error) {
-    console.error('❌ Erreur lors de la génération de la commande FFmpeg:', (error as Error).message);
-  }
-}
 
 // Point d'entrée principal
 async function main(): Promise<void> {
