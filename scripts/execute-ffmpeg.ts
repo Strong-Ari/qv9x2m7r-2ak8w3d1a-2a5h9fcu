@@ -293,7 +293,9 @@ class BatchFFmpegProcessor {
         .replace(/%/g, "\\%");        // Échapper les pourcentages
 
       // Construire le filtre avec le bon échappement
-      return `drawtext=fontfile=/Windows/Fonts/Impact.ttf:text='${escapedText}':x=(w-text_w)/2:y=h*0.8:fontsize=${fontsize}:fontcolor=${fontcolor}:enable='between(t\\,${subtitle.start}\\,${subtitle.end})':borderw=${borderw}:bordercolor=black:box=1:boxcolor=black@0.7:boxborderw=12`;
+      // Utiliser le chemin Windows complet pour la police Impact
+      const fontPath = process.platform === 'win32' ? 'C\\:/Windows/Fonts/impact.ttf' : '/Windows/Fonts/Impact.ttf';
+      return `drawtext=fontfile='${fontPath}':text='${escapedText}':x=(w-text_w)/2:y=h*0.8:fontsize=${fontsize}:fontcolor=${fontcolor}:enable='between(t\\,${subtitle.start}\\,${subtitle.end})':borderw=${borderw}:bordercolor=black:box=1:boxcolor=black@0.7:boxborderw=12`;
     }).filter(filter => filter !== null);
 
     return filters.join(',');
