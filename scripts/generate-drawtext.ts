@@ -336,7 +336,43 @@ const individualWordFilters = allWords
 const alternativeCommand = `ffmpeg -i "${videoInput}" -vf "${individualWordFilters.join(",")}" -c:a copy "${videoOutput.replace('.mp4', '_individual.mp4')}"`;
 console.log(alternativeCommand);
 
-// 🔹 Export des commandes
+// 🔹 Préparer les données des sous-titres avec timecodes
+interface SubtitleEntry {
+  text: string;
+  start: number;
+  end: number;
+  duration: number;
+  fontsize: number;
+  fontcolor: string;
+  isKeyword: boolean;
+}
+
+const subtitlesData: SubtitleEntry[] = wordGroups.map(group => {
+  if (group.length === 0) return null;
+
+  const firstWord = group[0];
+  const lastWord = group[group.length - 1];
+  const groupText = group.map(w => w.word).join(' ');
+  const cleanText = cleanAndEscapeText(groupText);
+
+  if (!cleanText) return null;
+
+  const start = parseFloat(firstWord.start.toFixed(2));
+  const end = parseFloat(lastWord.end.toFixed(2));
+  const isKey = group.some(word => isKeyword(word.word));
+
+  return {
+    text: groupText.trim(), // Texte original non échappé pour l'affichage
+    start,
+    end,
+    duration: parseFloat((end - start).toFixed(2)),
+    fontsize: isKey ? 78 : 72,
+    fontcolor: isKey ? 'yellow' : 'white',
+    isKeyword: isKey
+  };
+}).filter((subtitle): subtitle is SubtitleEntry => subtitle !== null);
+
+// 🔹 Export des commandes et sous-titres
 const publicDir = path.join(process.cwd(), 'public');
 if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
@@ -357,6 +393,30 @@ const exportData = {
 const commandPath = path.join(publicDir, 'ffmpeg-command.json');
 fs.writeFileSync(commandPath, JSON.stringify(exportData, null, 2), 'utf8');
 console.log(`✅ Commandes exportées dans : ${commandPath}`);
+
+// 🔹 Export des sous-titres avec timecodes (format simple)
+const simpleSubtitles = subtitlesData.map(sub => ({
+  text: sub.text,
+  start: sub.start
+}));
+
+const subtitlesPath = path.join(publicDir, 'subtitles-with-timecodes.json');
+fs.writeFileSync(subtitlesPath, JSON.stringify(simpleSubtitles, null, 2), 'utf8');
+console.log(`✅ Sous-titres avec timecodes exportés dans : ${subtitlesPath}`);
+
+// 🔹 Afficher un aperçu des sous-titres générés
+console.log(`\n📋 Aperçu des sous-titres générés :`);
+console.log(`- Total : ${subtitlesData.length} sous-titres`);
+console.log(`- Mots clés surlignés : ${subtitlesData.filter(s => s.isKeyword).length}`);
+console.log(`- Durée totale couverte : ${subtitlesData.length > 0 ? subtitlesData[subtitlesData.length - 1].end.toFixed(2) : 0}s`);
+
+if (subtitlesData.length > 0) {
+  console.log(`\n🎯 Premiers sous-titres :`);
+  subtitlesData.slice(0, 3).forEach((sub, i) => {
+    const keywordFlag = sub.isKeyword ? ' 🔥' : '';
+    console.log(`  ${i + 1}. [${sub.start}s → ${sub.end}s] "${sub.text}"${keywordFlag}`);
+  });
+}
 
 // 🔹 Debug : afficher quelques exemples de nettoyage
 console.log("\n🔍 Exemples de nettoyage de texte :");

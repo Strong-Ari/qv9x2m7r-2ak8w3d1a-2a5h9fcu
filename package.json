@@ -13,6 +13,7 @@
     "generate-drawtext": "ts-node scripts/generate-drawtext.ts",
     "add-subtitles": "ts-node scripts/execute-ffmpeg.ts",
     "mix-audio": "ts-node scripts/mix-audio.ts",
+    "contextual-emoji": "ts-node scripts/contextual-emoji.ts",
     "upload-to-cloudinary": "ts-node scripts/upload-video-cloudinary.ts",
     "put-to-tiktok": "ts-node scripts/video-upload-automation.ts",
     "send-email": "tsx scripts/send-email.tsx",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@react-email/components": "^0.0.15",
+    "@xenova/transformers": "^2.17.2",
     "cli-progress": "^3.12.0",
     "cloudinary": "^2.7.0",
     "dotenv": "^16.3.1",
