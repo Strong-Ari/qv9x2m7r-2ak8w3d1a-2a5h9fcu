@@ -41,20 +41,29 @@ function checkIfFileExists(fileName: string): boolean {
 
 // Fonction supprimée car les GIFs sont déjà bien préparés
 
-async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp: number, outputPath: string): Promise<void> {
+async function applyEmojiToVideo(videoPath: string, emojiPath: string, timestamp: number, outputPath: string, index: number): Promise<void> {
   // Calculer les timestamps pour l'animation
   const fadeDuration = 0.5; // Durée du fade in/out
-  const displayDuration = 3; // Durée totale d'affichage
+  const displayDuration = 1.9; // Durée totale d'affichage
 
   const startTime = timestamp;
   const endTime = timestamp + displayDuration;
   const fadeOutStart = endTime - fadeDuration;
 
+  // Variation aléatoire de ±30 pixels
+  const randomOffset = () => Math.floor(Math.random() * 61) - 30; // -30 à +30
+
+  // Alterner entre les deux zones focales et ajouter une variation aléatoire
+  const isRightSide = index % 2 === 0;
+  const baseX = isRightSide ? 'W-w-80' : '50';
+  const baseY = isRightSide ? 'H-h-200' : 'H-h-310';
+  const position = `x=${baseX}+${randomOffset()}:y=${baseY}+${randomOffset()}`;
+
   const filterComplex = [
     '[1:v]format=rgba[fmt]',
     '[fmt]scale=164:164[scaled]',
     '[scaled]fade=in:st=' + startTime + ':d=' + fadeDuration + ':alpha=1,fade=out:st=' + fadeOutStart + ':d=' + fadeDuration + ':alpha=1[withfade]',
-    '[0:v][withfade]overlay=x=W-w-80:y=H-h-200:shortest=1:enable=\'between(t,' + startTime + ',' + endTime + ')\'[v]'
+    '[0:v][withfade]overlay=' + position + ':shortest=1:enable=\'between(t,' + startTime + ',' + endTime + ')\'[v]'
   ].join(';');
 
   const command = [
@@ -106,7 +115,7 @@ async function main() {
         ? 'output_with_emojis.mp4'
         : `temp_output_${index}.mp4`;
 
-      await applyEmojiToVideo(currentInput, emojiPath, start, outputPath);
+      await applyEmojiToVideo(currentInput, emojiPath, start, outputPath, index);
 
       if (currentInput !== 'output_final.mp4') {
         fs.unlinkSync(currentInput); // Supprimer le fichier temporaire précédent
