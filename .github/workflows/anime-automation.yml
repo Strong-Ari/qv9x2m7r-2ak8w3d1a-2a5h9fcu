@@ -453,27 +453,12 @@ jobs:
 
       - name: 📢 Notifier Telegram (Succès ou Échec)
         if: always()
-        shell: pwsh
         run: |
           $status = "${{ job.status }}"
-          if ($status -eq "success") {
-            $msg = "✅ Automatisation Animé terminée avec succès !"
-          } else {
-            $msg = "❌ Échec Automatisation Animé !"
-          }
-
-          $text = @"
-$msg
-Workflow: ${{ github.workflow }}
-Job: ${{ github.job }}
-Commit: ${{ github.sha }}
-Auteur: ${{ github.actor }}
-Lien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-"@
-
-          Invoke-RestMethod -Uri "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" `
-            -Method Post `
-            -Body @{ chat_id = "${{ secrets.TELEGRAM_TO }}"; text = $text }
+          $msg = if ($status -eq "success") { "✅ Automatisation Animé terminée avec succès !" } else { "❌ Échec Automatisation Animé !" }
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" `
+            -d chat_id=${{ secrets.TELEGRAM_TO }} `
+            -d text="$msg`nWorkflow: ${{ github.workflow }}`nJob: ${{ github.job }}`nCommit: ${{ github.sha }}`nAuteur: ${{ github.actor }}`nLien: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
       - name: 📧 Envoyer mail stylisé React Email + Tailwind via Resend
         if: always()
