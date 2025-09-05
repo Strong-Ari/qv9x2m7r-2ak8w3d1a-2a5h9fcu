@@ -58,6 +58,7 @@ emojis/
 models/*
 !models/.gitkeep
 subs/ayanokoji-voice.json
+cloudinary-link.txt
 
 output.mp4
 output_video.mp4
