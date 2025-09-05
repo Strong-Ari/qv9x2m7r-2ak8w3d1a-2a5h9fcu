@@ -21,7 +21,7 @@
     "generate-login-hash": "ts-node scripts/generate-login-hash.ts",
     "send-email": "tsx scripts/send-email.tsx",
     "build-email": "tsx email/TikTokReport.tsx",
-    "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio"
+    "all": "npm run start && npm run select-clips && npm run concat-clips && npm run ffmpeg-tiktok-effects && npm run download-random-ost && npm run generate-subs && npm run clean-subs && npm run generate-drawtext && npm run add-subtitles && npm run mix-audio && npm run contextual-emoji && npm run download-animated-emojis && npm run apply-emoji-ffmpeg"
   },
   "dependencies": {
     "@react-email/components": "^0.0.15",

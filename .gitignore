@@ -52,6 +52,7 @@ public/ffmpeg-command.json
 public/subtitles-with-timecodes.json
 public/output-with-emojis.json
 public/emoji-analysis-debug.json
+public/subtitles-with-timecodes.json
 emojis/
 
 models/*
