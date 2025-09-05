@@ -27,6 +27,10 @@ jobs:
       # Hugging Face
       HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
 
+      # MetriCool
+      METRICOOL_EMAIL: ${{ secrets.METRICOOL_EMAIL }}
+      METRICOOL_PASSWORD: ${{ secrets.METRICOOL_PASSWORD }}
+
     steps:
       - name: 🔍 Inventaire outils pré-installés
         run: |
