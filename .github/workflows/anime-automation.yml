@@ -134,13 +134,16 @@ jobs:
 
           Write-Host "✅ 7z opérationnel !"
 
-      - name: Générer LOGIN_HASH
+      - name: 🔑 Générer LOGIN_HASH (Windows)
         env:
           METRICOOL_EMAIL: ${{ secrets.METRICOOL_EMAIL }}
           METRICOOL_PASSWORD: ${{ secrets.METRICOOL_PASSWORD }}
         run: |
-          LOGIN_HASH=$(npx tsx scripts/generate-login-hash.ts | cut -d '=' -f 2)
-          echo "LOGIN_HASH=$LOGIN_HASH" >> $GITHUB_ENV
+          $output = npx tsx scripts/generate-login-hash.ts
+          $loginHash = $output.Split('=')[1].Trim()
+          echo "LOGIN_HASH=$loginHash" >> $env:GITHUB_ENV
+        shell: pwsh
+
 
       - name: 💾 Restaurer le cookie Playwright
         uses: actions/cache@v4
@@ -471,6 +474,7 @@ jobs:
             output_video.mp4
             output_pre_final.mp4
             output_final.mp4
+            output_with_emojis.mp4
           retention-days: 7
 
       - name: 💾 Sauvegarde JSON
@@ -525,7 +529,7 @@ jobs:
           if (Test-Path cache) { Remove-Item -Recurse -Force cache }
           Get-ChildItem -Recurse -Include *.tmp, *.temp -ErrorAction SilentlyContinue | Remove-Item -Force
 
-      - name: 💾 Sauvegarder le cookie Playwright
+      - name: 💾 Sauvegarder le cookie Playwright (Windows)
         uses: actions/cache@v4
         with:
           path: |
@@ -533,8 +537,9 @@ jobs:
             cookies.meta.json
           key: playwright-cookie-${{ runner.os }}-${{ env.LOGIN_HASH }}
 
-      - name: 💾 Sauvegarder le cache des navigateurs Playwright
+      - name: 💾 Sauvegarder le cache des navigateurs Playwright (Windows)
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ms-playwright
+          path: C:\Users\runneradmin\.cache\ms-playwright
           key: playwright-${{ runner.os }}
+
