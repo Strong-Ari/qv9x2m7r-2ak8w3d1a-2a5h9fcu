@@ -291,4 +291,4 @@ if (require.main === module) {
   main().catch(console.error);
 }
 
-export { downloadEmojis, generateFFmpegCommand, loadEmojiData };
+export { downloadEmojis, loadEmojiData };
