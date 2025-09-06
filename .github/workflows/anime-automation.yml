@@ -2,8 +2,10 @@ name: Automatisation Anime
 
 on:
   schedule:
-    - cron: "0 14,22 * * *" # 14h et 22h UTC
+    - cron: "20 4 * * *"   # workflow démarre le matin à 04h20 UTC
+    - cron: "20 16 * * *"  # workflow démarre le soir à 16h20 UTC
   workflow_dispatch:
+
 
 jobs:
   anime-automation:
