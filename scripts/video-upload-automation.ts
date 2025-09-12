@@ -7,6 +7,7 @@ import { existsSync } from "fs";
 import dotenv from "dotenv";
 import path from "path";
 import crypto from "crypto";
+const voiceData = require("../subs/ayanokoji-voice.json");
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -52,6 +53,16 @@ function generateDescription(): string {
     "Vibes Ayanokoji",
     "Inspiré par Ayanokoji",
     "Extrait du maître Ayanokoji",
+    "Extrait du GOAT Ayanokoji",
+    "Extrait du Goat Ayanokoji",
+    "Pensée d'Ayanokoji",
+    "Réflexion Ayanokoji",
+    "Philosophie Ayanokoji",
+    "Sagesse d'Ayanokoji",
+    "Génie caché",
+    "Leçon psychologique",
+    "Puissance silencieuse",
+    "Mentalité Ayanokoji",
   ];
 
   // Endings pour compléter la description
@@ -61,7 +72,18 @@ function generateDescription(): string {
     "– Anime inspirant 💡",
     "– Moment intense 🔥",
     "– Extrait animé 🌀",
+    "– Génie caché 🕶️",
+    "– Puissance silencieuse 🌌",
+    "– L’ombre d’Ayanokoji 🖤",
+    "– Esprit stratégique ♟️",
+    "– Vibes psychologiques 🧠",
+    "– Citation marquante ✨",
+    "– Scène culte 🎬",
+    "– Mystère total 🌑",
+    "– Force tranquille 🐺",
+    "– Univers anime 🌍"
   ];
+
 
   // Pool de hashtags liés à l’anime
   const hashtagsPool = [
@@ -871,145 +893,9 @@ async function automatePublication(
       "Après clic sur Créer une publication",
     );
 
-    // Ajout description
-    logWithTimestamp("📝 Recherche du champ description...");
-    await page.waitForSelector(
-      'span.placeholder.editor-box[contenteditable="true"]',
-      { timeout: 10000 },
-    );
-    const description = getRandomDescription();
-
-    const descriptionInput = await page.$(
-      'span.placeholder.editor-box[contenteditable="true"]',
-    );
-    if (!descriptionInput) {
-      throw new Error("Champ description introuvable");
-    }
-    await safeInteraction(page, descriptionInput, "click", "Champ description");
-    await humanDelay(500, 1000);
-    await page.type(
-      'span.placeholder.editor-box[contenteditable="true"]',
-      description,
-      {
-        delay: Math.random() * 50 + 30,
-      },
-    );
-    await humanDelay(1000, 2000);
-    await takeScreenshot(page, "description_typed", "Description saisie");
-
-    // Ouvrir le panneau Tiktok presets et activer "Autoriser les commentaires"
-    logWithTimestamp('▶️ Ouverture du panneau "Tiktok presets"...');
-    try {
-      let tiktokPanelButton = await page.$(
-        'button.v-expansion-panel-title:has(.fa-tiktok), button.v-expansion-panel-title:has-text("Tiktok presets")',
-      );
-      if (!tiktokPanelButton) {
-        tiktokPanelButton = await page.$(
-          'button.v-expansion-panel-title:has-text("Tiktok presets")',
-        );
-      }
-      if (tiktokPanelButton) {
-        const expanded = await tiktokPanelButton.getAttribute("aria-expanded");
-        if (expanded !== "true") {
-          await safeInteraction(
-            page,
-            tiktokPanelButton,
-            "hover",
-            'Panneau "Tiktok presets"',
-          );
-          await humanDelay(150, 350);
-          await safeInteraction(
-            page,
-            tiktokPanelButton,
-            "click",
-            'Panneau "Tiktok presets"',
-          );
-        }
-        try {
-          await page.waitForFunction(
-            (btn) => {
-              const panel = (btn as Element).closest(".v-expansion-panel");
-              if (!panel) return false;
-              const content = panel.querySelector(".v-expansion-panel-text");
-              if (!content) return false;
-              const style = window.getComputedStyle(content as Element);
-              return (
-                style.display !== "none" &&
-                (content as HTMLElement).offsetHeight > 0
-              );
-            },
-            tiktokPanelButton,
-            { timeout: 5000 },
-          );
-        } catch {}
-        await takeScreenshot(
-          page,
-          "tiktok_presets_opened",
-          'Panneau "Tiktok presets" ouvert',
-        );
-      } else {
-        logWithTimestamp('⚠️ Panneau "Tiktok presets" introuvable');
-      }
-
-      // Activer "Autoriser les commentaires"
-      logWithTimestamp('🗨️ Activation de "Autoriser les commentaires"...');
-      let commentsInput = await page.$(
-        'input[aria-label="Autoriser les commentaires"]',
-      );
-      if (!commentsInput) {
-        const labelEl = await page.$(
-          'label:has-text("Autoriser les commentaires")',
-        );
-        if (labelEl) {
-          const inputFromLabel = await labelEl.$(
-            'xpath=preceding-sibling::div[contains(@class,"v-selection-control__input")]/input',
-          );
-          if (inputFromLabel) commentsInput = inputFromLabel;
-        }
-      }
-      if (commentsInput) {
-        const isChecked: boolean = await page.evaluate(
-          (el) => (el as HTMLInputElement).checked,
-          commentsInput,
-        );
-        if (!isChecked) {
-          const wrapperHandle = (await page.evaluateHandle(
-            (el) =>
-              el.closest("div.v-selection-control__wrapper") as HTMLElement,
-            commentsInput,
-          )) as any;
-          await safeInteraction(
-            page,
-            wrapperHandle,
-            "click",
-            'Wrapper "Autoriser les commentaires"',
-          );
-          await page.waitForFunction(
-            (el) => {
-              const input = el as HTMLInputElement;
-              const wrapper = input.closest("div.v-selection-control__wrapper");
-              const hasSuccess = wrapper?.classList.contains("text-success");
-              return input.checked === true || !!hasSuccess;
-            },
-            commentsInput,
-            { timeout: 5000 },
-          );
-          await takeScreenshot(
-            page,
-            "comments_enabled",
-            '"Autoriser les commentaires" activé',
-          );
-        } else {
-          logWithTimestamp('"Autoriser les commentaires" déjà activé');
-        }
-      } else {
-        logWithTimestamp('⚠️ Input "Autoriser les commentaires" introuvable');
-      }
-    } catch (e) {
-      logWithTimestamp(
-        `⚠️ Impossible d'ouvrir le panneau presets ou d'activer les commentaires: ${e}`,
-      );
-    }
+    await page.locator('.fa-brands.fa-youtube.v-icon.notranslate.v-theme--black-and-white.w-7').click();
+    await page.getByRole('button', { name: 'Vidéo' }).click();
+    await page.locator('div').filter({ hasText: /^Short$/ }).click();
 
     // Ajout vidéo
     logWithTimestamp("📹 Recherche bouton ajout vidéo...");
@@ -1162,6 +1048,260 @@ async function automatePublication(
     await safeInteraction(page, acceptButton, "click", "Bouton Accepter");
     await humanDelay(2000, 4000);
     await takeScreenshot(page, "accept_clicked", "Bouton Accepter cliqué");
+    await humanDelay(3000, 5000);
+
+    await page.getByText('Modifier par réseau').click();
+    await page.locator('.font-normal.tab').first().click();
+    await page.getByRole('button', { name: 'Modifier le contenu' }).click();
+
+    // Ajout description
+    logWithTimestamp("📝 Recherche du champ description...");
+    await page.waitForSelector(
+      'span.placeholder.editor-box[contenteditable="true"]',
+      { timeout: 10000 },
+    );
+    const description = getRandomDescription();
+
+    const descriptionInput = await page.$(
+      'span.placeholder.editor-box[contenteditable="true"]',
+    );
+    if (!descriptionInput) {
+      throw new Error("Champ description introuvable");
+    }
+    await safeInteraction(page, descriptionInput, "click", "Champ description");
+    await humanDelay(500, 1000);
+    await page.type(
+      'span.placeholder.editor-box[contenteditable="true"]',
+      description,
+      {
+        delay: Math.random() * 50 + 30,
+      },
+    );
+    await humanDelay(1000, 2000);
+    await takeScreenshot(page, "description_typed", "Description saisie");
+
+    // Ouvrir le panneau Tiktok presets et activer "Autoriser les commentaires"
+    logWithTimestamp('▶️ Ouverture du panneau "Tiktok presets"...');
+    try {
+      let tiktokPanelButton = await page.$(
+        'button.v-expansion-panel-title:has(.fa-tiktok), button.v-expansion-panel-title:has-text("Tiktok presets")',
+      );
+      if (!tiktokPanelButton) {
+        tiktokPanelButton = await page.$(
+          'button.v-expansion-panel-title:has-text("Tiktok presets")',
+        );
+      }
+      if (tiktokPanelButton) {
+        const expanded = await tiktokPanelButton.getAttribute("aria-expanded");
+        if (expanded !== "true") {
+          await safeInteraction(
+            page,
+            tiktokPanelButton,
+            "hover",
+            'Panneau "Tiktok presets"',
+          );
+          await humanDelay(150, 350);
+          await safeInteraction(
+            page,
+            tiktokPanelButton,
+            "click",
+            'Panneau "Tiktok presets"',
+          );
+        }
+        try {
+          await page.waitForFunction(
+            (btn) => {
+              const panel = (btn as Element).closest(".v-expansion-panel");
+              if (!panel) return false;
+              const content = panel.querySelector(".v-expansion-panel-text");
+              if (!content) return false;
+              const style = window.getComputedStyle(content as Element);
+              return (
+                style.display !== "none" &&
+                (content as HTMLElement).offsetHeight > 0
+              );
+            },
+            tiktokPanelButton,
+            { timeout: 5000 },
+          );
+        } catch {}
+        await takeScreenshot(
+          page,
+          "tiktok_presets_opened",
+          'Panneau "Tiktok presets" ouvert',
+        );
+      } else {
+        logWithTimestamp('⚠️ Panneau "Tiktok presets" introuvable');
+      }
+
+      // Activer "Autoriser les commentaires"
+      logWithTimestamp('🗨️ Activation de "Autoriser les commentaires"...');
+      let commentsInput = await page.$(
+        'input[aria-label="Autoriser les commentaires"]',
+      );
+      if (!commentsInput) {
+        const labelEl = await page.$(
+          'label:has-text("Autoriser les commentaires")',
+        );
+        if (labelEl) {
+          const inputFromLabel = await labelEl.$(
+            'xpath=preceding-sibling::div[contains(@class,"v-selection-control__input")]/input',
+          );
+          if (inputFromLabel) commentsInput = inputFromLabel;
+        }
+      }
+      if (commentsInput) {
+        const isChecked: boolean = await page.evaluate(
+          (el) => (el as HTMLInputElement).checked,
+          commentsInput,
+        );
+        if (!isChecked) {
+          const wrapperHandle = (await page.evaluateHandle(
+            (el) =>
+              el.closest("div.v-selection-control__wrapper") as HTMLElement,
+            commentsInput,
+          )) as any;
+          await safeInteraction(
+            page,
+            wrapperHandle,
+            "click",
+            'Wrapper "Autoriser les commentaires"',
+          );
+          await page.waitForFunction(
+            (el) => {
+              const input = el as HTMLInputElement;
+              const wrapper = input.closest("div.v-selection-control__wrapper");
+              const hasSuccess = wrapper?.classList.contains("text-success");
+              return input.checked === true || !!hasSuccess;
+            },
+            commentsInput,
+            { timeout: 5000 },
+          );
+          await takeScreenshot(
+            page,
+            "comments_enabled",
+            '"Autoriser les commentaires" activé',
+          );
+        } else {
+          logWithTimestamp('"Autoriser les commentaires" déjà activé');
+        }
+      } else {
+        logWithTimestamp('⚠️ Input "Autoriser les commentaires" introuvable');
+      }
+    } catch (e) {
+      logWithTimestamp(
+        `⚠️ Impossible d'ouvrir le panneau presets ou d'activer les commentaires: ${e}`,
+      );
+    }
+    logWithTimestamp("🎯 Configuration des paramètres YouTube...");
+
+    // YouTube icon
+    await takeScreenshot(page, "before_youtube_icon", "Avant clic sur icône YouTube");
+    await page.locator('.fa-brands.fa-youtube.v-icon.notranslate.v-theme--black-and-white.text-primary').click();
+    await takeScreenshot(page, "after_youtube_icon", "Après clic sur icône YouTube");
+    logWithTimestamp("✅ Icône YouTube cliquée");
+
+    // Modifier le contenu
+    await humanDelay(500, 1000);
+    await takeScreenshot(page, "before_edit_content", "Avant modification du contenu");
+    await humanDelay(500, 1000);
+    await page.getByRole('button', { name: 'Modifier le contenu' }).click();
+    await takeScreenshot(page, "after_edit_content", "Après clic sur modifier contenu");
+    logWithTimestamp("✅ Bouton modifier contenu cliqué");
+
+    // Description
+    logWithTimestamp("📝 Saisie de la description...");
+    await page.locator('.placeholder').click();
+    await humanDelay(500, 1000);
+    await page.locator('.placeholder').fill('Dans Classroom of the Elite, Ayanokoji nous rappelle que derrière chaque sourire se cache une stratégie, et que les plus grandes trahisons viennent rarement des ennemis.\n\n👉 Abonne-toi pour plus de citations marquantes et moments forts de CoTE !\n#ayanokoji #classroomoftheelite #anime');
+    await takeScreenshot(page, "description_filled", "Description remplie");
+
+    // Préréglages YouTube
+    logWithTimestamp("⚙️ Configuration des préréglages YouTube...");
+    await takeScreenshot(page, "before_youtube_presets", "Avant préréglages YouTube");
+    await page.locator('.v-card.v-card--flat.v-theme--black-and-white.v-card--density-default.v-card--variant-elevated.flex').first().click();
+    await humanDelay(500, 1000);
+    // Faire défiler la page pour rendre le bouton visible
+    await page.evaluate(() => {
+      window.scrollBy(0, 500); // Scroll de 500px vers le bas
+    });
+    await humanDelay(500, 1000);
+
+      // Faire défiler la page pour rendre le bouton visible
+    await page.evaluate(() => {
+      window.scrollBy(0, 500); // Scroll de 500px vers le bas
+    });
+
+    // Titre
+    logWithTimestamp("📝 Génération et saisie du titre...");
+    await page.getByRole('textbox', { name: 'Titre court ou vidéo Titre' }).click();
+    const firstSegment = voiceData.segments?.[0];
+    let videoTitle = "Citations Ayanokoji | Classroom of the Elite";
+    if (firstSegment && typeof firstSegment.text === "string") {
+      const match = firstSegment.text.match(/question\.\s*(.*?)\?/i);
+      if (match && match[1]) {
+      // Take only the part before the comma or the first 50 characters
+      const baseText = match[1].split(',')[0].trim();
+      videoTitle = `${baseText}? | Classroom of the Elite`;
+      } else {
+      const firstQuestionMark = firstSegment.text.indexOf(' ?');
+      if (firstQuestionMark !== -1) {
+        const question = firstSegment.text.substring(0, firstQuestionMark + 1);
+        // Take only the part before the comma or the first 50 characters
+        const baseText = question.split(',')[0].trim();
+        videoTitle = `${baseText} | Classroom of the Elite`;
+      } else {
+        const firstSentence = firstSegment.text.split(".")[0];
+        // Take only the part before the comma or the first 50 characters
+        const baseText = firstSentence.split(',')[0].trim();
+        videoTitle = `${baseText} | Classroom of the Elite`;
+      }
+      }
+    }
+    await page.getByRole('textbox', { name: 'Titre court ou vidéo Titre' }).fill(videoTitle);
+    await takeScreenshot(page, "title_filled", "Titre rempli");
+    logWithTimestamp(`✅ Titre généré et saisi: "${videoTitle}"`);
+
+    // Paramètres supplémentaires
+    logWithTimestamp("⚙️ Configuration des paramètres additionnels...");
+    await page.locator('.v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field > .v-field__input').first().click();
+    await page.getByText('Non, ce n\'est pas une vidéo').click();
+    await page.locator('div:nth-child(4) > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input').click();
+    await page.getByText('Divertissement').click();
+    await takeScreenshot(page, "additional_settings", "Paramètres additionnels configurés");
+
+    // Tags
+    logWithTimestamp("🏷️ Ajout des tags...");
+    const allTags = [
+      'classroom of the elite',
+      'ayanokoji',
+      'anime',
+      'CoTE',
+      'ayanokoji quotes',
+      'classroom of the elite quotes',
+      'anime quotes',
+      'animeclips',
+      'animequote',
+      'animevibes',
+      'animemoments',
+      'classroomoftheelite',
+      'otaku',
+      'animeedits'
+    ];
+
+    // Sélection aléatoire de 6 tags
+    const tags = [...allTags]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 6);
+    for (const tag of tags) {
+      await page.getByRole('textbox', { name: 'Tags Tags' }).click();
+      await page.getByRole('textbox', { name: 'Tags Tags' }).fill(tag);
+      await page.getByRole('textbox', { name: 'Tags Tags' }).press('Enter');
+      logWithTimestamp(`✅ Tag ajouté: ${tag}`);
+    }
+    await takeScreenshot(page, "tags_added", "Tags ajoutés");
+
+    logWithTimestamp("✅ Configuration YouTube terminée");
 
     // Publication
     logWithTimestamp("📤 Publication...");
@@ -1467,7 +1607,7 @@ async function run(): Promise<void> {
 
     browser = await chromiumExtra.launch({
       headless: true,
-      slowMo: isCI ? 200 : 100, // Ralentissement plus important en CI
+      slowMo: isCI ? 200 : 0, // Ralentissement plus important en CI
       channel: "chrome",
       args: [
         "--no-first-run",
