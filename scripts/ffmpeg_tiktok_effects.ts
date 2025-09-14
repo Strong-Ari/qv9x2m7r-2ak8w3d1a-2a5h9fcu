@@ -7,6 +7,7 @@ const inputVideo = "output.mp4";
 const scratchesVideo = "public/scratches.mp4";
 const riserAudio = "public/riser.wav";
 const outputVideo = "output_video.mp4";
+const cameraShutterAudio = "public/camera-shutter.mp3";
 
 // 1️⃣ Récupérer la durée de la vidéo en secondes
 const ffprobe = spawnSync("ffprobe", [
@@ -24,6 +25,7 @@ const ffmpegArgs = [
   "-i", inputVideo,
   "-i", scratchesVideo,
   "-i", riserAudio,
+  "-i", cameraShutterAudio,
   "-filter_complex",
   // 🔧 CORRECTIONS APPLIQUÉES :
   // - Suppression de tblend (causait le filtre rouge)
@@ -40,8 +42,12 @@ const ffmpegArgs = [
   `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
   // Vignette simple
   `[vout]vignette[vout_vignette];` +
-  // Volume du riser augmenté
-  `[2:a]volume=2.8,afade=t=in:st=0:d=0.2[aout]`,
+  // Volume du riser augmenté et fondu d'entrée
+  `[2:a]volume=2.8,afade=t=in:st=0:d=0.2[aout_riser];` +
+  // Décalage du son shutter de 3.5s
+  `[3:a]adelay=3500|3500[aout_shutter];` +
+  // Mixage des deux sons
+  `[aout_riser][aout_shutter]amix=inputs=2[aout]`,
   "-map", "[vout_vignette]",
   "-map", "[aout]",
   "-c:v", "libx264",
