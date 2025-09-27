@@ -67,19 +67,19 @@ async function main() {
   const data: CloudinaryResponse = await response.json();
 
   // Filtrer uniquement le dossier tiktok-anime
-  const availableClips = data.resources.filter((r) => r.asset_folder === "tiktok-anime");
-  console.log(`🗂️ Clips trouvés dans tiktok-anime (${availableClips.length}) :`);
-  availableClips.forEach((clip, idx) => {
-    console.log(`  [${idx}] public_id: ${clip.public_id}`);
-  });
+  const availableClips = data.resources.filter((r) => r.asset_folder === "tiktok-anime" && !r.public_id.startsWith('intro-ayano'));
 
-  // Sélectionner le clip d'intro (public_id commence par 'intro-ayano')
-  const introClip = availableClips.find((clip) => clip.public_id.startsWith("intro-ayano"));
-  console.log("🔍 Résultat recherche intro-ayano:", introClip ? `TROUVÉ (${introClip.public_id})` : "NON TROUVÉ");
-  if (!introClip) {
-    console.error("❌ Le clip d'intro 'intro-ayano' est introuvable dans tiktok-anime");
-    process.exit(1);
-  }
+
+
+
+
+
+
+
+
+
+
+
 
   if (availableClips.length === 0) {
     console.error("❌ Aucun clip trouvé dans le dossier tiktok-anime");
@@ -92,25 +92,25 @@ async function main() {
   let totalDuration = 0;
   const usedClipIds = new Set<string>();
 
-  // Ajouter le clip d'intro en premier
-  let introDuration = introClip.media_metadata?.duration;
-  if (!introDuration) {
-    try {
-      console.warn(`⚠️ Duration manquante pour intro-ayano, fallback avec get-video-duration`);
-      introDuration = await getVideoDurationInSeconds(introClip.secure_url);
-    } catch (err) {
-      console.error(`❌ Impossible de récupérer la durée pour intro-ayano:`, err);
-      process.exit(1);
-    }
-  }
-  selectedClips.push({
-    url: introClip.secure_url,
-    duration: introDuration,
-    public_id: introClip.public_id,
-  });
-  totalDuration += introDuration;
-  usedClipIds.add(introClip.public_id);
-  console.log(`✅ Clip d'intro ajouté : intro-ayano (${introDuration.toFixed(2)}s)`);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   console.log("🎯 Sélection des clips...");
   while (totalDuration < targetDuration) {

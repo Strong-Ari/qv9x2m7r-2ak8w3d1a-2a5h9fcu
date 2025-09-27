@@ -5,9 +5,8 @@ import readline from "readline";
 // Fichiers
 const inputVideo = "output.mp4";
 const scratchesVideo = "public/scratches.mp4";
-const riserAudio = "public/riser.wav";
+const whooshAudio = "public/whoosh.mp3";
 const outputVideo = "output_video.mp4";
-const cameraShutterAudio = "public/camera-shutter.mp3";
 
 // 1️⃣ Récupérer la durée de la vidéo en secondes
 const ffprobe = spawnSync("ffprobe", [
@@ -24,8 +23,7 @@ console.log(`Durée totale vidéo: ${duration.toFixed(2)}s`);
 const ffmpegArgs = [
   "-i", inputVideo,
   "-i", scratchesVideo,
-  "-i", riserAudio,
-  "-i", cameraShutterAudio,
+  "-i", whooshAudio,
   "-filter_complex",
   // 🔧 CORRECTIONS APPLIQUÉES :
   // - Suppression de tblend (causait le filtre rouge)
@@ -40,15 +38,11 @@ const ffmpegArgs = [
   `[1:v]scale=1080:1920,trim=0:${duration}[scratch_scaled];` +
   // 🔧 Réduction de l'opacité des scratches pour un effet plus subtil
   `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
-  // Vignette simple
-  `[vout]vignette[vout_vignette];` +
-  // Volume du riser augmenté et fondu d'entrée
-  `[2:a]volume=2.8,afade=t=in:st=0:d=0.2[aout_riser];` +
-  // Décalage du son shutter de 3.5s
-  `[3:a]adelay=3500|3500[aout_shutter];` +
-  // Mixage des deux sons
-  `[aout_riser][aout_shutter]amix=inputs=2[aout]`,
-  "-map", "[vout_vignette]",
+  `[2:a]atrim=0:1,afade=t=in:st=0:d=0.2[aout]`,
+  "-map", "[vout]",
+
+
+
   "-map", "[aout]",
   "-c:v", "libx264",
   // 🔧 AMÉLIORATION DE LA QUALITÉ MAXIMALE :
