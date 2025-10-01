@@ -3,9 +3,7 @@ name: Automatisation Anime
 on:
   schedule:
     - cron: "43 4 * * *"   # pour un post à 08h00 FR
-    - cron: "13 9 * * *"   # pour un post à 12h30 FR
     - cron: "13 15 * * *"  # pour un post à 18h30 FR
-    - cron: "13 18 * * *"  # pour un post à 21h30 FR
   workflow_dispatch:
 
 
