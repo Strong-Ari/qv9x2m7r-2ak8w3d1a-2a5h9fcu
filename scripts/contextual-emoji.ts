@@ -100,6 +100,126 @@ async function main() {
     { pattern: /!/, emoji: "Exclamation", reason: "Exclamation", confidence: 0.6 },
     { pattern: /\b(mais|cependant|pourtant)\b/i, emoji: "Raised-eyebrow", reason: "Contraste", confidence: 0.5 },
     { pattern: /\b(attention|danger|prudence)\b/i, emoji: "Warning", reason: "Avertissement", confidence: 0.8 },
+
+    // Perception et réalité
+    { pattern: /\b(illusion|perception|réalité|vrai|faux)\b/i, emoji: "Face-with-spiral-eyes", reason: "Perception altérée", confidence: 0.8 },
+    { pattern: /\b(conscience|lucidité|éveil|réalisation)\b/i, emoji: "Mind-blown", reason: "Prise de conscience", confidence: 0.9 },
+    { pattern: /\b(contrôle|manipulation|influence|pouvoir)\b/i, emoji: "Crystal-ball", reason: "Manipulation", confidence: 0.8 },
+
+    // Biais cognitifs et pensée
+    { pattern: /\b(biais|préjugé|erreur|jugement)\b/i, emoji: "Brain", reason: "Biais cognitif", confidence: 0.9 },
+    { pattern: /\b(automatisme|habitude|répétition|schéma)\b/i, emoji: "Repeat", reason: "Automatisme mental", confidence: 0.8 },
+    { pattern: /\b(expertise|compétence|savoir|connaissance)\b/i, emoji: "Nerd-face", reason: "Dunning-Kruger", confidence: 0.8 },
+
+    // Société moderne et technologie
+    { pattern: /\b(numérique|digital|virtuel|technologie)\b/i, emoji: "Robot", reason: "Monde numérique", confidence: 0.8 },
+    { pattern: /\b(algorithme|système|programme|automatisation)\b/i, emoji: "Gear", reason: "Système", confidence: 0.7 },
+    { pattern: /\b(addiction|dépendance|besoin|manque)\b/i, emoji: "Dizzy-face", reason: "Addiction", confidence: 0.8 },
+
+    // Validation sociale
+    { pattern: /\b(validation|approbation|acceptation|reconnaissance)\b/i, emoji: "Sparkle", reason: "Validation sociale", confidence: 0.8 },
+    { pattern: /\b(likes|followers|popularité|audience)\b/i, emoji: "Star-struck", reason: "Popularité", confidence: 0.8 },
+    { pattern: /\b(trace|mémoire|souvenir|oubli)\b/i, emoji: "Hourglass", reason: "Temporalité", confidence: 0.7 },
+
+    // États mentaux complexes
+    { pattern: /\b(lucidité|confusion|trouble|doute)\b/i, emoji: "Spiral-eyes", reason: "État mental", confidence: 0.8 },
+    { pattern: /\b(authenticité|sincérité|vérité|mensonge)\b/i, emoji: "Monocle", reason: "Authenticité", confidence: 0.8 },
+    { pattern: /\b(filtre|masque|façade|apparence)\b/i, emoji: "Disguised-face", reason: "Masque social", confidence: 0.8 },
+
+    // Concepts philosophiques profonds
+    { pattern: /\b(mérite|succès|accomplissement|réussite)\b/i, emoji: "Trophy", reason: "Mérite et succès", confidence: 0.9 },
+    { pattern: /\b(hasard|chance|circonstance|destin)\b/i, emoji: "Game-die", reason: "Hasard et destin", confidence: 0.8 },
+    { pattern: /\b(loyauté|fidélité|trahison|engagement)\b/i, emoji: "Handshake", reason: "Loyauté", confidence: 0.9 },
+
+    // Concepts temporels et existence
+    { pattern: /\b(temps|passé|futur|présent|instant)\b/i, emoji: "Hourglass", reason: "Temporalité", confidence: 0.8 },
+    { pattern: /\b(mort|finitude|fin|éternité)\b/i, emoji: "Skull", reason: "Mortalité", confidence: 0.9 },
+    { pattern: /\b(mémoire|souvenir|oubli|trace)\b/i, emoji: "Brain", reason: "Mémoire", confidence: 0.8 },
+
+    // Relations et pouvoir
+    { pattern: /\b(domination|contrôle|influence|manipulation)\b/i, emoji: "Chess-pawn", reason: "Domination", confidence: 0.9 },
+    { pattern: /\b(stratégie|calcul|plan|anticipation)\b/i, emoji: "Crystal-ball", reason: "Stratégie", confidence: 0.8 },
+    { pattern: /\b(intérêt|avantage|profit|bénéfice)\b/i, emoji: "Money-with-wings", reason: "Intérêt", confidence: 0.8 },
+
+    // Illusions et réalité
+    { pattern: /\b(illusion|réalité|perception|vérité)\b/i, emoji: "Face-with-spiral-eyes", reason: "Perception", confidence: 0.9 },
+    { pattern: /\b(bonheur|satisfaction|contentement|joie)\b/i, emoji: "Slightly-happy", reason: "Bonheur illusoire", confidence: 0.8 },
+    { pattern: /\b(masque|façade|apparence|image)\b/i, emoji: "Disguised-face", reason: "Apparence", confidence: 0.9 },
+
+    // Concepts sociétaux
+    { pattern: /\b(société|norme|règle|convention)\b/i, emoji: "Classical-building", reason: "Structure sociale", confidence: 0.8 },
+    { pattern: /\b(justice|équité|droit|loi)\b/i, emoji: "Balance-scale", reason: "Justice", confidence: 0.9 },
+    { pattern: /\b(pouvoir|autorité|force|domination)\b/i, emoji: "Crown", reason: "Pouvoir", confidence: 0.9 },
+
+    // États d'esprit complexes
+    { pattern: /\b(malaise|confusion|vertige|déséquilibre)\b/i, emoji: "Woozy", reason: "État désorienté", confidence: 0.8 },
+    { pattern: /\b(suppliant|implorant|priant|demandant)\b/i, emoji: "Pleading", reason: "Supplication", confidence: 0.8 },
+    { pattern: /\b(épuisement|fatigue|lassitude|usure)\b/i, emoji: "Distraught", reason: "Épuisement", confidence: 0.8 },
+    { pattern: /\b(choc|traumatisme|stupeur|effroi)\b/i, emoji: "Astonished", reason: "Choc", confidence: 0.9 },
+    { pattern: /\b(angoisse|panique|terreur|effroi)\b/i, emoji: "Screaming", reason: "Panique", confidence: 0.9 },
+
+    // Attitudes et comportements
+    { pattern: /\b(insolent|moqueur|narquois|provocant)\b/i, emoji: "Smirk", reason: "Insolence", confidence: 0.8 },
+    { pattern: /\b(grimace|contorsion|déformation|torsion)\b/i, emoji: "Grimacing", reason: "Grimace", confidence: 0.7 },
+    { pattern: /\b(neutre|impassible|stoïque|indifférent)\b/i, emoji: "Neutral-face", reason: "Neutralité", confidence: 0.7 },
+    { pattern: /\b(silence|muet|discret|taire)\b/i, emoji: "Zipper-face", reason: "Silence", confidence: 0.8 },
+    { pattern: /\b(salut|respect|honneur|dignité)\b/i, emoji: "Salute", reason: "Respect", confidence: 0.8 },
+
+    // Concepts abstraits avancés
+    { pattern: /\b(cycle|répétition|boucle|retour)\b/i, emoji: "Infinity", reason: "Cycle", confidence: 0.8 },
+    { pattern: /\b(harmonie|équilibre|balance|union)\b/i, emoji: "Yin-yang", reason: "Harmonie", confidence: 0.9 },
+    { pattern: /\b(croissance|évolution|progrès|développement)\b/i, emoji: "Seedling", reason: "Croissance", confidence: 0.8 },
+    { pattern: /\b(chaos|désordre|confusion|perturbation)\b/i, emoji: "Collision", reason: "Chaos", confidence: 0.8 },
+    { pattern: /\b(transformation|changement|mutation|métamorphose)\b/i, emoji: "Butterfly", reason: "Transformation", confidence: 0.9 },
+
+    // Symboles de réussite et d'accomplissement
+    { pattern: /\b(victoire|triomphe|conquête|réussite)\b/i, emoji: "Victory", reason: "Victoire", confidence: 0.9 },
+    { pattern: /\b(excellence|perfection|maîtrise|expertise)\b/i, emoji: "Gold-medal", reason: "Excellence", confidence: 0.9 },
+    { pattern: /\b(diplôme|savoir|connaissance|apprentissage)\b/i, emoji: "Graduation-cap", reason: "Savoir", confidence: 0.8 },
+    { pattern: /\b(énergie|batterie|force|vitalité)\b/i, emoji: "Battery-full", reason: "Énergie", confidence: 0.7 },
+    { pattern: /\b(richesse|fortune|prospérité|abondance)\b/i, emoji: "Gem-stone", reason: "Richesse", confidence: 0.8 },
+
+    // Éléments naturels et symboliques
+    { pattern: /\b(océan|mer|vague|profondeur)\b/i, emoji: "Ocean", reason: "Profondeur", confidence: 0.8 },
+    { pattern: /\b(orage|tempête|tourmente|agitation)\b/i, emoji: "Cloud-with-lightning", reason: "Tourmente", confidence: 0.8 },
+    { pattern: /\b(renaissance|renouveau|résurrection|réveil)\b/i, emoji: "Sunrise", reason: "Renaissance", confidence: 0.9 },
+    { pattern: /\b(espoir|arc-en-ciel|promesse|optimisme)\b/i, emoji: "Rainbow", reason: "Espoir", confidence: 0.8 },
+    { pattern: /\b(paix|sérénité|calme|tranquillité)\b/i, emoji: "Peace-symbol", reason: "Paix", confidence: 0.9 },
+
+    // États émotionnels nuancés
+    { pattern: /\b(fondre|dissoudre|disparaître|effacer)\b/i, emoji: "Melting", reason: "Dissolution", confidence: 0.8 },
+    { pattern: /\b(paradoxe|contradiction|inverse|opposé)\b/i, emoji: "Upside-down-face", reason: "Paradoxe", confidence: 0.8 },
+    { pattern: /\b(retenir|contenir|garder|maintenir)\b/i, emoji: "Holding-back-tears", reason: "Retenue", confidence: 0.8 },
+    { pattern: /\b(rougir|embarrassé|gêné|timide)\b/i, emoji: "Blush", reason: "Embarras", confidence: 0.7 },
+    { pattern: /\b(bâiller|ennui|lassitude|monotonie)\b/i, emoji: "Yawn", reason: "Ennui", confidence: 0.7 },
+
+    // Interactions complexes
+    { pattern: /\b(observer|épier|surveiller|guetter)\b/i, emoji: "Peeking", reason: "Observation furtive", confidence: 0.8 },
+    { pattern: /\b(murmurer|chuchoter|confier|révéler)\b/i, emoji: "Hand-over-mouth", reason: "Confidence", confidence: 0.8 },
+    { pattern: /\b(embrasser|étreindre|serrer|rapprocher)\b/i, emoji: "Hug-face", reason: "Proximité", confidence: 0.8 },
+    { pattern: /\b(pointer|désigner|indiquer|montrer)\b/i, emoji: "Point-up", reason: "Indication", confidence: 0.7 },
+    { pattern: /\b(écrire|noter|rédiger|composer)\b/i, emoji: "Writing-hand", reason: "Écriture", confidence: 0.8 },
+
+    // Expressions corporelles
+    { pattern: /\b(mordre|tension|stress|nervosité)\b/i, emoji: "Biting-lip", reason: "Tension", confidence: 0.8 },
+    { pattern: /\b(entendre|écouter|ouïr|percevoir)\b/i, emoji: "Ear", reason: "Écoute", confidence: 0.7 },
+    { pattern: /\b(sentir|flairer|pressentir|intuition)\b/i, emoji: "Nose", reason: "Intuition", confidence: 0.7 },
+    { pattern: /\b(force|puissance|muscle|vigueur)\b/i, emoji: "Muscle", reason: "Force", confidence: 0.8 },
+    { pattern: /\b(applaudir|féliciter|acclamer|célébrer)\b/i, emoji: "Clap", reason: "Célébration", confidence: 0.8 },
+
+    // États transitoires
+    { pattern: /\b(malade|souffrant|mal|douleur)\b/i, emoji: "Sick", reason: "Souffrance", confidence: 0.8 },
+    { pattern: /\b(chaud|brûlant|ardent|enflammé)\b/i, emoji: "Hot-face", reason: "Chaleur", confidence: 0.8 },
+    { pattern: /\b(froid|glacial|gelé|frisson)\b/i, emoji: "Cold-face", reason: "Froid", confidence: 0.8 },
+    { pattern: /\b(trembler|secouer|vibrer|frémir)\b/i, emoji: "Shaking-face", reason: "Tremblement", confidence: 0.8 },
+    { pattern: /\b(dormir|sommeiller|reposer|rêver)\b/i, emoji: "Sleep", reason: "Sommeil", confidence: 0.7 },
+
+    // Concepts mystiques et surnaturels
+    { pattern: /\b(magie|sortilège|enchantement|mystère)\b/i, emoji: "Wand", reason: "Magie", confidence: 0.8 },
+    { pattern: /\b(ange|divin|céleste|pur)\b/i, emoji: "Angel", reason: "Divin", confidence: 0.8 },
+    { pattern: /\b(démon|diable|maléfique|sombre)\b/i, emoji: "Imp-smile", reason: "Démoniaque", confidence: 0.8 },
+    { pattern: /\b(fantôme|spectre|esprit|apparition)\b/i, emoji: "Ghost", reason: "Spectral", confidence: 0.8 },
+    { pattern: /\b(alien|étranger|inconnu|mystérieux)\b/i, emoji: "Alien", reason: "Étrangeté", confidence: 0.7 },
   ];
 
   const results: SubtitleWithEmoji[] = [];
