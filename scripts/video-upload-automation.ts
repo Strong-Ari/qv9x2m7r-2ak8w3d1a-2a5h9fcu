@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import path from "path";
 import crypto from "crypto";
 const voiceData = require("../subs/ayanokoji-voice.json");
+const { exec } = require('child_process');
 
 // Charger les variables d'environnement
 dotenv.config();
@@ -1258,7 +1259,7 @@ async function automatePublication(
       }
       }
     }
-    await page.getByRole('textbox', { name: 'Titre court ou vidéo' }).fill(videoTitle);
+    await page.locator('#input-164').fill(videoTitle);
     await takeScreenshot(page, "title_filled", "Titre rempli");
     logWithTimestamp(`✅ Titre généré et saisi: "${videoTitle}"`);
 
@@ -1474,6 +1475,42 @@ async function automatePublication(
 
     // Attendre un peu plus longtemps pour laisser le temps à la publication
     await humanDelay(2000, 3000);
+
+    // Récupérer le nombre de publications restantes
+    try {
+      await page.goto('https://app.metricool.com/planner', { waitUntil: 'networkidle' });
+      const publishCountElement = await page.getByText(/\d+ de vos 50/);
+      const text = await publishCountElement.textContent();
+      const match = text?.match(/(\d+) de vos 50/);
+      if (match) {
+      const remainingPosts = parseInt(match[1]);
+      logWithTimestamp(`📊 Publications restantes: ${remainingPosts}/50`);
+
+      // Si 49 ou 50 publications, exécuter updateMetricoolSecret.ts
+      if (remainingPosts >= 49) {
+        logWithTimestamp('🔄 Limite de publications proche, exécution de updateMetricoolSecret.ts');
+        interface ExecCallback {
+          (error: Error | null, stdout: string, stderr: string): void;
+        }
+
+        const execCallback: ExecCallback = (error, stdout, stderr) => {
+          if (error) {
+            logWithTimestamp(`❌ Erreur lors de l'exécution de updateMetricoolSecret.ts: ${error}`);
+            return;
+          }
+          logWithTimestamp(`✅ updateMetricoolSecret.ts exécuté avec succès\n${stdout}`);
+        };
+
+        exec('ts-node ./scripts/updateMetricoolSecret.ts', execCallback);
+      }
+      } else {
+      logWithTimestamp('⚠️ Impossible de récupérer le nombre de publications restantes');
+      }
+    } catch (error) {
+      logWithTimestamp(`⚠️ Erreur lors de la récupération des publications restantes: ${error}`);
+    }
+
+
 
     try {
       await page.waitForFunction(
