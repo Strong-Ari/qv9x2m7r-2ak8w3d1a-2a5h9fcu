@@ -1299,9 +1299,9 @@ async function automatePublication(
       .sort(() => Math.random() - 0.5)
       .slice(0, 6);
     for (const tag of tags) {
-      await page.getByRole('textbox', { name: 'Tags Tags' }).click();
-      await page.getByRole('textbox', { name: 'Tags Tags' }).fill(tag);
-      await page.getByRole('textbox', { name: 'Tags Tags' }).press('Enter');
+      await page.locator('input[name="youtube_tags"]').click();
+      await page.locator('input[name="youtube_tags"]').fill(tag);
+      await page.locator('input[name="youtube_tags"]').press('Enter');
       logWithTimestamp(`✅ Tag ajouté: ${tag}`);
     }
     await takeScreenshot(page, "tags_added", "Tags ajoutés");
