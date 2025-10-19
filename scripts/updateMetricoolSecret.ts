@@ -2,7 +2,7 @@ import { Octokit } from "@octokit/rest";
 import sodium from "libsodium-wrappers";
 import 'dotenv/config';
 
-const GITHUB_SECRET_METRICOOL = process.env.GITHUB_SECRET_METRICOOL;
+const SECRET_METRICOOL = process.env.SECRET_METRICOOL;
 const REPO_OWNER = process.env.REPO_OWNER || "";
 const REPO_NAME = process.env.REPO_NAME || "";
 
@@ -50,12 +50,12 @@ async function getCurrentSecret(octokit: Octokit) {
 }
 
 async function updateMetricoolEmail() {
-    if (!GITHUB_SECRET_METRICOOL) {
-        throw new Error("GITHUB_SECRET_METRICOOL environment variable is required");
+    if (!SECRET_METRICOOL) {
+        throw new Error("SECRET_METRICOOL environment variable is required");
     }
 
     const octokit = new Octokit({
-        auth: GITHUB_SECRET_METRICOOL
+        auth: SECRET_METRICOOL
     });
 
     // Get the current secret
