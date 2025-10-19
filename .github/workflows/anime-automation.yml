@@ -507,6 +507,7 @@ jobs:
           path: |
             *.log
             logs/
+            screenshots/
             cloudinary-link.txt
           retention-days: 3
 

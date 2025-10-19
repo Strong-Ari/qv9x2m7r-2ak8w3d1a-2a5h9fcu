@@ -1235,7 +1235,7 @@ async function automatePublication(
 
     // Titre
     logWithTimestamp("📝 Génération et saisie du titre...");
-    await page.locator('#input-164').click();
+    await page.locator('.v-field.v-field--appended.v-field--center-affix.v-field--has-background').first().click();
     const firstSegment = voiceData.segments?.[0];
     let videoTitle = "Citations Ayanokoji | Classroom of the Elite";
     if (firstSegment && typeof firstSegment.text === "string") {
@@ -1259,14 +1259,14 @@ async function automatePublication(
       }
       }
     }
-    await page.locator('#input-164').fill(videoTitle);
+    await page.locator('.v-field.v-field--appended.v-field--center-affix.v-field--has-background').fill(videoTitle);
     await takeScreenshot(page, "title_filled", "Titre rempli");
     logWithTimestamp(`✅ Titre généré et saisi: "${videoTitle}"`);
 
     // Paramètres supplémentaires
     logWithTimestamp("⚙️ Configuration des paramètres additionnels...");
     await page.locator('.v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field > .v-field__input').first().click();
-    await page.locator('#input-164').click();
+    await page.getByText('Non, ce n\'est pas une vidéo').click();
     await page.locator('div:nth-child(4) > .v-input > .v-input__control > .v-field > .v-field__field > .v-field__input').click();
     await page.getByText('Divertissement').click();
     await takeScreenshot(page, "additional_settings", "Paramètres additionnels configurés");
