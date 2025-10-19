@@ -1235,7 +1235,7 @@ async function automatePublication(
 
     // Titre
     logWithTimestamp("📝 Génération et saisie du titre...");
-    await page.locator('.v-field.v-field--appended.v-field--center-affix.v-field--has-background').first().click();
+    await page.locator('input[name="youtube_title"]').click();
     const firstSegment = voiceData.segments?.[0];
     let videoTitle = "Citations Ayanokoji | Classroom of the Elite";
     if (firstSegment && typeof firstSegment.text === "string") {
@@ -1259,7 +1259,7 @@ async function automatePublication(
       }
       }
     }
-    await page.locator('.v-field.v-field--appended.v-field--center-affix.v-field--has-background').fill(videoTitle);
+    await page.locator('input[name="youtube_title"]').fill(videoTitle);
     await takeScreenshot(page, "title_filled", "Titre rempli");
     logWithTimestamp(`✅ Titre généré et saisi: "${videoTitle}"`);
 
