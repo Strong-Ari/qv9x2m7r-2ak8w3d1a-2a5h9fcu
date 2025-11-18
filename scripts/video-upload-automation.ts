@@ -451,41 +451,35 @@ async function login(
     await humanDelay(3000, 5000);
 
     // Attendre que les champs de connexion soient visibles
-    await page.waitForSelector("#j_username", { timeout: 15000 });
-    await page.waitForSelector("#j_password", { timeout: 15000 });
+    await page.getByRole('textbox', { name: 'Entrez votre adresse e-mail' }).waitFor({ timeout: 15000 });
+    await page.getByRole('textbox', { name: 'Entrez votre mot de passe ici' }).waitFor({ timeout: 15000 });
 
     // Saisie email avec simulation humaine
     logWithTimestamp("📝 Saisie de l'email...");
-    const emailInput = await page.$("#j_username");
-    if (emailInput) {
-      await emailInput.click();
-      await humanDelay(500, 1000);
-      await page.type("#j_username", email, {
-        delay: Math.random() * 100 + 50,
-      });
-      await humanDelay(500, 1500);
-    }
+    const emailInput = page.getByRole('textbox', { name: 'Entrez votre adresse e-mail' });
+    await emailInput.click();
+    await humanDelay(500, 1000);
+    await emailInput.type(email, {
+      delay: Math.random() * 100 + 50,
+    });
+    await humanDelay(500, 1500);
 
     // Saisie mot de passe avec simulation humaine
     logWithTimestamp("🔑 Saisie du mot de passe...");
-    const passwordInput = await page.$("#j_password");
-    if (passwordInput) {
-      await passwordInput.click();
-      await humanDelay(300, 800);
-      await page.type("#j_password", password, {
-        delay: Math.random() * 100 + 50,
-      });
-      await humanDelay(800, 1500);
-    }
+    const passwordInput = page.getByRole('textbox', { name: 'Entrez votre mot de passe ici' });
+    await passwordInput.click();
+    await humanDelay(300, 800);
+    await passwordInput.type(password, {
+      delay: Math.random() * 100 + 50,
+    });
+    await humanDelay(800, 1500);
 
     // Clic sur connexion avec hover
     logWithTimestamp("▶️ Connexion...");
-    const loginButton = await page.$("#loginFormSubmit");
-    if (loginButton) {
-      await safeInteraction(page, loginButton, "hover", "Bouton de connexion");
-      await humanDelay(300, 700);
-      await safeInteraction(page, loginButton, "click", "Bouton de connexion");
-    }
+    const loginButton = page.getByRole('button', { name: 'Accès' });
+    await safeInteraction(page, loginButton, "hover", "Bouton de connexion");
+    await humanDelay(300, 700);
+    await safeInteraction(page, loginButton, "click", "Bouton de connexion");
 
     // Attendre la redirection après connexion
     try {
