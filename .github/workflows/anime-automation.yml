@@ -9,7 +9,7 @@ on:
 
 jobs:
   anime-automation:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 120
 
     env:
