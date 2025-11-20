@@ -450,9 +450,11 @@ async function login(
     });
     await humanDelay(3000, 5000);
 
+    // Attendre un peu puis forcer la navigation
+    await humanDelay(3000, 5000);
+
     // Attendre que les champs de connexion soient visibles
-    await page.getByRole('textbox', { name: 'Entrez votre adresse e-mail' }).waitFor({ timeout: 15000 });
-    await page.getByRole('textbox', { name: 'Entrez votre mot de passe ici' }).waitFor({ timeout: 15000 });
+    await page.getByRole("textbox").first().waitFor({ timeout: 30000 });
 
     // Saisie email avec simulation humaine
     logWithTimestamp("📝 Saisie de l'email...");
