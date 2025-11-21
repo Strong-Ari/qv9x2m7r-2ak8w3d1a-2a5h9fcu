@@ -36,7 +36,7 @@ interface Config {
 const COOKIES_PATH = "cookies.json";
 const COOKIES_META_PATH = "cookies.meta.json";
 const VIDEO_LINK_PATH = "cloudinary-link.txt";
-const LOGIN_URL = "https://app.metricool.com/home";
+const LOGIN_URL = "https://app.metricool.com/";
 const PLANNER_URL = "https://app.metricool.com/planner";
 const SCREENSHOTS_DIR = "screenshots";
 
@@ -454,11 +454,14 @@ async function login(
     await humanDelay(3000, 5000);
 
     // Attendre que les champs de connexion soient visibles
-    await page.getByRole("textbox").first().waitFor({ timeout: 30000 });
-
+    // Saisie email avec simulation humaine
     // Saisie email avec simulation humaine
     logWithTimestamp("📝 Saisie de l'email...");
-    const emailInput = page.getByRole('textbox', { name: 'Entrez votre adresse e-mail' });
+    // Utilisation d'un sélecteur CSS plus robuste et direct (input[name="email"])
+    const emailInput = page.locator('input[name="email"]');
+
+    // Attendre que le champ email soit visible
+    await emailInput.waitFor({ state: 'visible', timeout: 30000 });
     await emailInput.click();
     await humanDelay(500, 1000);
     await emailInput.type(email, {
@@ -468,7 +471,8 @@ async function login(
 
     // Saisie mot de passe avec simulation humaine
     logWithTimestamp("🔑 Saisie du mot de passe...");
-    const passwordInput = page.getByRole('textbox', { name: 'Entrez votre mot de passe ici' });
+    // Utilisation d'un sélecteur CSS standard pour le mot de passe
+    const passwordInput = page.locator('input[type="password"]');
     await passwordInput.click();
     await humanDelay(300, 800);
     await passwordInput.type(password, {
@@ -478,7 +482,9 @@ async function login(
 
     // Clic sur connexion avec hover
     logWithTimestamp("▶️ Connexion...");
-    const loginButton = page.getByRole('button', { name: 'Accès' });
+    // Utilisation d'un sélecteur CSS robuste pour le bouton de connexion
+    // Utilisation de .first() pour éviter l'erreur "strict mode violation" si plusieurs boutons submit sont présents
+    const loginButton = page.locator('button[type="submit"]').first();
     await safeInteraction(page, loginButton, "hover", "Bouton de connexion");
     await humanDelay(300, 700);
     await safeInteraction(page, loginButton, "click", "Bouton de connexion");
@@ -685,21 +691,37 @@ async function safeInteraction(
   try {
     logWithTimestamp(`🔄 Tentative ${action} sur: ${description}`);
 
-    // Vérifier si l'élément est visible et stable
-    await element.waitForElementState("stable", { timeout: 10000 });
+    // Gestion différente selon si c'est un Locator ou un ElementHandle
+    // Gestion plus robuste pour différencier Locator et ElementHandle
+    // Locator a une méthode waitFor(), ElementHandle a waitForElementState()
+    const isLocator = typeof element.waitFor === 'function';
+    const timeout = 30000; // Timeout augmenté pour plus de stabilité
+
+    // Attendre que l'élément soit stable
+    if (isLocator) {
+      // Pour un Locator, on attend qu'il soit visible
+      await element.waitFor({ state: 'visible', timeout: timeout });
+    } else if (typeof element.waitForElementState === 'function') {
+      // Pour un ElementHandle
+      await element.waitForElementState("stable", { timeout: timeout });
+    } else {
+      // Fallback si ni l'un ni l'autre (ne devrait pas arriver)
+      logWithTimestamp(`⚠️ Type d'élément non reconnu pour ${description}, tentative directe...`);
+    }
 
     // Faire défiler l'élément en vue si nécessaire
     await element.scrollIntoViewIfNeeded();
     await humanDelay(200, 500);
 
     // Vérifier s'il y a des éléments qui bloquent (point central intercepté)
-    let isBlocked = await page.evaluate((el) => {
+    // Note: evaluate sur un Locator passe l'élément DOM correspondant
+    let isBlocked = await element.evaluate((el: Element) => {
       const rect = el.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       const elementAtPoint = document.elementFromPoint(centerX, centerY);
       return elementAtPoint !== el && !el.contains(elementAtPoint);
-    }, element);
+    });
 
     if (isBlocked) {
       logWithTimestamp(
@@ -722,13 +744,13 @@ async function safeInteraction(
       await humanDelay(400, 700);
 
       // Re-check
-      isBlocked = await page.evaluate((el) => {
+      isBlocked = await element.evaluate((el: Element) => {
         const rect = el.getBoundingClientRect();
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
         const elementAtPoint = document.elementFromPoint(centerX, centerY);
         return elementAtPoint !== el && !el.contains(elementAtPoint);
-      }, element);
+      });
     }
 
     // Exécuter l'action avec retry (moins agressif)
@@ -738,9 +760,9 @@ async function safeInteraction(
     while (retryCount < maxRetries) {
       try {
         if (action === "hover") {
-          await element.hover({ timeout: 8000 });
+          await element.hover({ timeout: 20000 });
         } else {
-          await element.click({ timeout: 8000, force: true });
+          await element.click({ timeout: 20000, force: true });
         }
         logWithTimestamp(`✅ ${action} réussi sur: ${description}`);
         return;
