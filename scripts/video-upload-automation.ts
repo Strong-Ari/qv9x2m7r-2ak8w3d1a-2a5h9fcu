@@ -482,9 +482,8 @@ async function login(
 
     // Clic sur connexion avec hover
     logWithTimestamp("▶️ Connexion...");
-    // Utilisation d'un sélecteur CSS robuste pour le bouton de connexion
-    // Utilisation de .first() pour éviter l'erreur "strict mode violation" si plusieurs boutons submit sont présents
-    const loginButton = page.locator('button[type="submit"]').first();
+    // Utilisation d'un sélecteur CSS robuste pour le bouton de connexion avec aria-label spécifique
+    const loginButton = page.locator('button[aria-label="Submit login form"]');
     await safeInteraction(page, loginButton, "hover", "Bouton de connexion");
     await humanDelay(300, 700);
     await safeInteraction(page, loginButton, "click", "Bouton de connexion");
