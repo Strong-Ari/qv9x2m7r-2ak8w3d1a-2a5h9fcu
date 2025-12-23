@@ -274,6 +274,39 @@ async function ensureOnPlanningTab(page: Page): Promise<void> {
   try {
     logWithTimestamp("🔍 Navigation vers l'onglet Planification...");
 
+    // Ajouter un script d'initialisation au contexte pour définir le localStorage AVANT le chargement des pages
+    logWithTimestamp("🔧 Configuration du script d'initialisation localStorage...");
+    try {
+      const context = page.context();
+
+      // Script qui s'exécute AVANT que la page se charge
+      await context.addInitScript(() => {
+        // Ajouter les clés de localStorage avant que le code de la page s'exécute
+        localStorage.setItem('brand.5222086:free.limits.change.modal.showed.v1', 'true');
+        localStorage.setItem('brand:free.limits.change.modal.showed.v1', 'true');
+        localStorage.setItem('free.limits.change.modal.showed', 'true');
+
+        // Ajouter aussi une clé générique qui pourrait capturer d'autres IDs
+        const setAllLimitKeys = () => {
+          const allKeys = Object.keys(localStorage);
+          const limitKeys = allKeys.filter(k => k.includes('free.limits.change.modal'));
+          for (const key of limitKeys) {
+            localStorage.setItem(key, 'true');
+          }
+        };
+
+        // Exécuter au démarrage et aussi observer les changements
+        setAllLimitKeys();
+
+        // Observer les événements de stockage pour appliquer aussi aux autres pages
+        window.addEventListener('storage', setAllLimitKeys);
+      });
+
+      logWithTimestamp("✅ Script d'initialisation ajouté au contexte");
+    } catch (error) {
+      logWithTimestamp(`⚠️ Erreur lors de l'ajout du script d'initialisation: ${error}`);
+    }
+
     // Navigation directe vers la page planner avec retry
     await retryNavigation(page, PLANNER_URL);
 
@@ -293,7 +326,61 @@ async function ensureOnPlanningTab(page: Page): Promise<void> {
       });
     }
 
-    await humanDelay(3000, 5000); // Délai plus long en CI
+    // Configurer le localStorage après la navigation aussi (pour les clés créées dynamiquement)
+    logWithTimestamp("🔧 Configuration du localStorage après navigation...");
+    try {
+      await page.evaluate(() => {
+        // Chercher dynamiquement les clés avec "free.limits.change.modal"
+        const allKeys = Object.keys(localStorage);
+        const limitKeys = allKeys.filter(k => k.includes('free.limits.change.modal'));
+
+        console.log("Clés du localStorage trouvées:", limitKeys);
+
+        // Les mettre toutes à true
+        for (const key of limitKeys) {
+          localStorage.setItem(key, 'true');
+          console.log(`✅ localStorage mis à jour pour clé: ${key}`);
+        }
+      });
+      logWithTimestamp("✅ localStorage configuré après navigation");
+    } catch (error) {
+      logWithTimestamp(`⚠️ Erreur lors de la configuration du localStorage: ${error}`);
+    }
+
+    // Ajouter une fonction pour fermer le modal s'il apparaît quand même
+    logWithTimestamp("🔍 Recherche et fermeture du modal s'il apparaît...");
+    await humanDelay(2000, 3000);
+
+    try {
+      // Chercher et cliquer sur le bouton close du modal
+      const closed = await page.evaluate(() => {
+        // Chercher le bouton close (icône xmark dans un button)
+        const closeButtons = document.querySelectorAll('button');
+        for (const btn of closeButtons) {
+          // Chercher le bouton avec l'icône fa-xmark
+          const icon = btn.querySelector('i.fa-xmark, i.fa-regular.fa-xmark');
+          if (icon && btn.offsetParent !== null) { // offsetParent !== null signifie que l'élément est visible
+            // Vérifier que c'est bien dans un modal/dialog
+            const dialog = btn.closest('div[role="dialog"], .v-dialog, .modal');
+            if (dialog) {
+              (btn as HTMLButtonElement).click();
+              console.log("✅ Modal fermé via bouton close");
+              return true;
+            }
+          }
+        }
+        return false;
+      });
+
+      if (closed) {
+        logWithTimestamp("✅ Modal fermé avec succès");
+        await humanDelay(1000, 2000);
+      }
+    } catch (error) {
+      logWithTimestamp(`⚠️ Erreur lors de la fermeture du modal: ${error}`);
+    }
+
+    await humanDelay(2000, 3000);
 
     // Vérifier que la page est bien chargée avec retry
     let pageLoaded = false;
