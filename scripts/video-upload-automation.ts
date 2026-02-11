@@ -1590,8 +1590,8 @@ async function automatePublication(
       const remainingPosts = parseInt(match[1]);
       logWithTimestamp(`📊 Publications restantes: ${remainingPosts}/50`);
 
-      // Si 49 ou 50 publications, exécuter updateMetricoolSecret.ts
-      if (remainingPosts >= 49) {
+      // Si 19 ou 20 publications, exécuter updateMetricoolSecret.ts
+      if (remainingPosts >= 19) {
         logWithTimestamp('🔄 Limite de publications proche, exécution de updateMetricoolSecret.ts');
         interface ExecCallback {
           (error: Error | null, stdout: string, stderr: string): void;
