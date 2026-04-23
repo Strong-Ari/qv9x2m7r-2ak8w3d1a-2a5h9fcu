@@ -391,7 +391,7 @@ async function ensureOnPlanningTab(page: Page): Promise<void> {
       attempts++;
       try {
         await page.waitForSelector(
-          'button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
+          'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
           { timeout: 15000 },
         );
         logWithTimestamp("✅ Page Planification chargée avec succès");
@@ -455,6 +455,8 @@ async function isSessionValid(page: Page): Promise<boolean> {
 
     // Vérifier la présence d'éléments indiquant qu'on est connecté
     const loggedInIndicators = [
+      'button[aria-label="Create post"]',
+      'button[aria-label="Créer une publication"]',
       'button:has-text("Créer une publication")',
       'button:has-text("Create")',
       'button:has-text("Créer")',
@@ -486,7 +488,7 @@ async function isSessionValid(page: Page): Promise<boolean> {
     if (currentUrl.includes("/planner")) {
       try {
         await page.waitForSelector(
-          'button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
+          'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
           { timeout: 5000 },
         );
         logWithTimestamp(
@@ -722,6 +724,8 @@ async function typeUrlHumanly(
 // Fonction améliorée pour trouver le bouton "Créer une publication"
 async function findCreatePublicationButton(page: Page): Promise<any> {
   const selectors = [
+    'button[aria-label="Create post"]',
+    'button[aria-label="Créer une publication"]',
     'button:has-text("Créer une publication")',
     'button:has-text("Create")',
     'button:has-text("Créer")',
@@ -935,8 +939,12 @@ async function automatePublication(
     );
     await takeScreenshot(page, "start", "Début du processus");
 
-    // Attendre que la page soit complètement chargée
-    await page.waitForLoadState("networkidle", { timeout: 15000 });
+    // Attendre que la page soit complètement chargée (soft wait pour networkidle)
+    try {
+      await page.waitForLoadState("networkidle", { timeout: 15000 });
+    } catch (error) {
+      logWithTimestamp("⚠️ Timeout networkidle lors de l'automatisation, on continue quand même...");
+    }
     await humanDelay(3000, 5000);
 
     // Recherche améliorée du bouton "Créer une publication"
