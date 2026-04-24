@@ -136,39 +136,25 @@ export async function typeUrlHumanly(
   const input = await page.$(selector);
   if (!input) throw new Error(`Input ${selector} not found`);
 
-  await input.hover();
-  await humanDelay(200, 500);
+  logWithTimestamp(`📝 Remplissage URL: ${url.substring(0, 60)}...`);
+
+  await input.scrollIntoViewIfNeeded();
+  await humanDelay(300, 600);
   await input.click();
-  await humanDelay(300, 800);
+  await humanDelay(200, 400);
 
-  await page.keyboard.press("Control+a");
-  await humanDelay(100, 300);
-  await page.keyboard.press("Delete");
-  await humanDelay(200, 500);
+  // ✅ fill() est bien plus fiable que keyboard.type() en prod
+  await input.fill(url);
+  await humanDelay(500, 1000);
 
-  for (const char of url) {
-    await page.keyboard.type(char);
-    await humanDelay(50, 150);
+  // Triple vérification
+  const finalValue = await input.inputValue();
+  if (!finalValue) {
+    logWithTimestamp(`❌ ERREUR: URL vide après fill()`);
+    throw new Error(`URL input is empty: ${url}`);
   }
 
-  await humanDelay(500, 1000);
-
-  await page.evaluate(
-    (args: string[]) => {
-      const [selector, url] = args;
-      const input = document.querySelector(selector) as HTMLInputElement;
-      if (input) {
-        input.value = url;
-        ["input", "change", "keyup", "blur", "paste"].forEach((eventType) => {
-          input.dispatchEvent(new Event(eventType, { bubbles: true }));
-        });
-      }
-    },
-    [selector, url],
-  );
-
-  await page.keyboard.press("Tab");
-  await humanDelay(500, 1000);
+  logWithTimestamp(`✅ URL définie: ${finalValue.substring(0, 50)}...`);
 }
 
 // ─── Nettoyage des éléments bloquants ─────────────────────────────────────────
