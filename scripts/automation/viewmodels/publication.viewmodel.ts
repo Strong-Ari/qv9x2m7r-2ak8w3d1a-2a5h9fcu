@@ -56,7 +56,19 @@ async function configureTikTok(page: Page, videoLink: string): Promise<void> {
   await takeScreenshot(page, "clicked_create_publication", "Après clic sur Créer une publication");
 
   await page.locator(".fa-brands.fa-youtube.v-icon.notranslate.v-theme--black-and-white.w-7").click();
-  await page.getByRole("button", { name: "Vidéo" }).click();
+  logWithTimestamp('⏳ Recherche du bouton "Vidéo"...');
+  try {
+    await page.getByRole("button", { name: "Vidéo" }).waitFor({ 
+      state: 'visible', 
+      timeout: 8000 
+    });
+    await page.getByRole("button", { name: "Vidéo" }).click();
+  } catch (e) {
+    logWithTimestamp(`⚠️ Bouton "Vidéo" non trouvé avec le rôle, essai du sélecteur de secours...`);
+    const videoBtn = await page.$('button:has-text("Vidéo")');
+    if (!videoBtn) throw new Error('Bouton "Vidéo" introuvable');
+    await videoBtn.click();
+  }
   await page.locator("div").filter({ hasText: /^Short$/ }).click();
 
   // Ajout vidéo
@@ -86,7 +98,22 @@ async function configureTikTok(page: Page, videoLink: string): Promise<void> {
 
   // Saisie URL
   logWithTimestamp("📝 Saisie de l'URL vidéo...");
+
+  // Attendre que le champ input soit visible
+  await page.waitForSelector('input[name="URL"]', { 
+    state: 'visible', 
+    timeout: 10000 
+  });
+
+  // Vérifier que c'est vraiment un input
+  const urlInput = await page.$('input[name="URL"]');
+  if (!urlInput) {
+    throw new Error('Champ URL introuvable après attente');
+  }
+
+  // Saisir l'URL
   await typeUrlHumanly(page, 'input[name="URL"]', videoLink);
+  await humanDelay(1000, 2000);
 
   // Attente validation URL
   logWithTimestamp("⏳ Début attente validation URL...");

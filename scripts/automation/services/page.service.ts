@@ -143,14 +143,21 @@ export async function typeUrlHumanly(
   await input.click();
   await humanDelay(200, 400);
 
-  // ✅ fill() est bien plus fiable que keyboard.type() en prod
-  await input.fill(url);
+  // Au lieu de fill() qui passe le texte en une fois (ce qui casse la validation sur Metricool), 
+  // on utilise type() pour simuler une vraie frappe clavier
+  await input.fill(""); // S'assure que le champ est vide
+  await humanDelay(200, 400);
+  await input.type(url, { delay: 35 }); // Tape chaque lettre avec un petit délai
+  await humanDelay(500, 1000);
+  
+  // Appui sur Tab pour déclencher l'événement blur/change
+  await input.press("Tab");
   await humanDelay(500, 1000);
 
-  // Triple vérification
-  const finalValue = await input.inputValue();
+  // Triple vérification sans utiliser .inputValue() qui peut causer des erreurs de type de noeud
+  const finalValue = await input.evaluate((el) => (el as HTMLInputElement).value || el.textContent || "");
   if (!finalValue) {
-    logWithTimestamp(`❌ ERREUR: URL vide après fill()`);
+    logWithTimestamp(`❌ ERREUR: URL vide après frappe`);
     throw new Error(`URL input is empty: ${url}`);
   }
 
