@@ -3,6 +3,8 @@ import { logWithTimestamp, humanDelay } from "../utils";
 import { takeScreenshot } from "../services/screenshot.service";
 import { safeInteraction, findCreatePublicationButton, typeUrlHumanly, closeToastIfVisible } from "../services/page.service";
 import { getRandomDescription } from "../models/description.model";
+import { getEnvironmentTimeouts } from "../config";
+import { ensureOnPlanningTab } from "./session.viewmodel";
 
 const voiceData = require("../../../subs/ayanokoji-voice.json");
 const { exec } = require("child_process");
@@ -339,15 +341,50 @@ async function configureYoutube(page: Page): Promise<void> {
 async function publish(page: Page): Promise<void> {
   logWithTimestamp("📤 Publication...");
 
-  await page.waitForSelector("button.v-btn.bg-primary:has(i.fa-chevron-down)", { timeout: 10000 });
-  let publishDropdown = await page.$("button.v-btn.bg-primary:has(i.fa-chevron-down)");
-  if (!publishDropdown) throw new Error("Dropdown de publication introuvable");
+  const timeouts = getEnvironmentTimeouts();
+  const dropdownTimeout = timeouts.selector * 3; // e.g. 60s in CI
+
+  // Sélecteurs multiples pour le bouton dropdown de publication
+  const DROPDOWN_SELECTORS = [
+    "button.v-btn.bg-primary:has(i.fa-chevron-down)",
+    "button.bg-primary:has(i.fa-chevron-down)",
+    'button.v-btn.bg-primary:has([class*="chevron-down"])',
+    'button.v-btn:has-text("Publier"):has(i[class*="chevron"])',
+    'button[class*="bg-primary"]:has(i[class*="chevron-down"])',
+  ];
+
+  logWithTimestamp(`🔍 Attente du bouton dropdown de publication (timeout: ${dropdownTimeout}ms)...`);
+
+  // Race sur les sélecteurs multiples
+  let foundSelector: string | null = null;
+  const startTime = Date.now();
+  while (!foundSelector && Date.now() - startTime < dropdownTimeout) {
+    for (const sel of DROPDOWN_SELECTORS) {
+      try {
+        const el = await page.$(sel);
+        if (el && (await el.isVisible())) {
+          foundSelector = sel;
+          logWithTimestamp(`✅ Dropdown trouvé avec: ${sel}`);
+          break;
+        }
+      } catch {}
+    }
+    if (!foundSelector) await humanDelay(800, 1200);
+  }
+
+  if (!foundSelector) {
+    await takeScreenshot(page, "publish_dropdown_not_found", "Dropdown publication introuvable");
+    throw new Error(`Dropdown de publication introuvable après ${dropdownTimeout}ms (tous les sélecteurs échoués)`);
+  }
+
+  let publishDropdown = await page.$(foundSelector);
+  if (!publishDropdown) throw new Error("Dropdown de publication introuvable après sélection");
 
   await safeInteraction(page, publishDropdown, "hover", "Dropdown de publication");
   await humanDelay(300, 600);
-  
+
   // Re-requêtage pour éviter l'erreur 'Element is not attached to the DOM' après un éventuel re-render
-  publishDropdown = await page.$("button.v-btn.bg-primary:has(i.fa-chevron-down)");
+  publishDropdown = await page.$(foundSelector);
   if (publishDropdown) {
     await safeInteraction(page, publishDropdown, "click", "Dropdown de publication");
   }
@@ -466,9 +503,26 @@ async function verifyPublicationSuccess(page: Page): Promise<void> {
 
 // ─── Point d'entrée du ViewModel ──────────────────────────────────────────────
 
-export async function automatePublication(page: Page, videoLink: string): Promise<void> {
+export async function automatePublication(page: Page, videoLink: string, isRetry = false): Promise<void> {
   try {
-    logWithTimestamp("🚀 Début du processus d'automatisation avec anti-détection...");
+    logWithTimestamp(`🚀 Début du processus d'automatisation${isRetry ? " (retry)" : ""} avec anti-détection...`);
+
+    // En mode retry, re-stabiliser la page avant de commencer
+    if (isRetry) {
+      logWithTimestamp("🔧 Stabilisation de la page avant retry...");
+      await ensureOnPlanningTab(page);
+      // Fermer tout modal ou toast résiduel
+      await closeToastIfVisible(page);
+      try {
+        const scrim = await page.$(".v-overlay__scrim");
+        if (scrim && (await scrim.isVisible())) {
+          await scrim.click({ force: true });
+          await humanDelay(500, 1000);
+        }
+      } catch {}
+      await humanDelay(3000, 5000);
+    }
+
     await takeScreenshot(page, "start", "Début du processus");
 
     // Attente networkidle (soft — ne bloque pas si timeout)

@@ -75,7 +75,7 @@ async function run(): Promise<void> {
       logWithTimestamp("🔄 Tentative de retry en naviguant vers PLANNER_URL...");
       await retryNavigation(page, PLANNER_URL);
       await humanDelay(3000, 5000);
-      await automatePublication(page, videoLink);
+      await automatePublication(page, videoLink, true); // isRetry=true → stabilisation avant tentative
       logWithTimestamp("✨ Script terminé avec succès après retry !");
     }
 
