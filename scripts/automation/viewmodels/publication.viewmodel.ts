@@ -323,23 +323,30 @@ async function publish(page: Page): Promise<void> {
   logWithTimestamp("📤 Publication...");
 
   await page.waitForSelector("button.v-btn.bg-primary:has(i.fa-chevron-down)", { timeout: 10000 });
-  const publishDropdown = await page.$("button.v-btn.bg-primary:has(i.fa-chevron-down)");
+  let publishDropdown = await page.$("button.v-btn.bg-primary:has(i.fa-chevron-down)");
   if (!publishDropdown) throw new Error("Dropdown de publication introuvable");
 
   await safeInteraction(page, publishDropdown, "hover", "Dropdown de publication");
   await humanDelay(300, 600);
-  await safeInteraction(page, publishDropdown, "click", "Dropdown de publication");
+  
+  // Re-requêtage pour éviter l'erreur 'Element is not attached to the DOM' après un éventuel re-render
+  publishDropdown = await page.$("button.v-btn.bg-primary:has(i.fa-chevron-down)");
+  if (publishDropdown) {
+    await safeInteraction(page, publishDropdown, "click", "Dropdown de publication");
+  }
   await humanDelay(1000, 2000);
 
   await page.waitForSelector('div.v-list-item[data-value="publishNow"]', { timeout: 5000 });
-  const publishNowItem = await page.$('div.v-list-item[data-value="publishNow"]');
+  let publishNowItem = await page.$('div.v-list-item[data-value="publishNow"]');
   if (!publishNowItem) throw new Error('Option "Publier maintenant" introuvable');
 
   await page.$eval('div.v-list-item[data-value="publishNow"]', (el) => el.scrollIntoView());
   await humanDelay(200, 500);
-  await publishNowItem.click({ force: true });
+  
+  publishNowItem = await page.$('div.v-list-item[data-value="publishNow"]');
+  if (publishNowItem) await publishNowItem.click({ force: true });
 
-  const finalPublishButton = await page.$('button.v-btn:has-text("Publier maintenant")');
+  let finalPublishButton = await page.$('button.v-btn:has-text("Publier maintenant")');
   if (!finalPublishButton) throw new Error('Bouton final "Publier maintenant" introuvable');
 
   // Fermer le toast avant publication
@@ -358,7 +365,6 @@ async function publish(page: Page): Promise<void> {
     });
   } catch {}
 
-  logWithTimestamp("🎯 Tentative de clic sur le bouton final...");
   try {
     const isVisible = await finalPublishButton.isVisible();
     const isEnabled = await finalPublishButton.isEnabled();
@@ -368,13 +374,23 @@ async function publish(page: Page): Promise<void> {
     } else {
       await safeInteraction(page, finalPublishButton, "hover", "Bouton final Publier maintenant");
       await humanDelay(500, 1000);
-      await safeInteraction(page, finalPublishButton, "click", "Bouton final Publier maintenant");
+      
+      finalPublishButton = await page.$('button.v-btn:has-text("Publier maintenant")');
+      if (finalPublishButton) {
+        await safeInteraction(page, finalPublishButton, "click", "Bouton final Publier maintenant");
+      }
     }
   } catch (error) {
     logWithTimestamp(`⚠️ Clic direct échoué: ${error}, utilisation de safeInteraction`);
-    await safeInteraction(page, finalPublishButton, "hover", "Bouton final Publier maintenant");
-    await humanDelay(500, 1000);
-    await safeInteraction(page, finalPublishButton, "click", "Bouton final Publier maintenant");
+    finalPublishButton = await page.$('button.v-btn:has-text("Publier maintenant")');
+    if (finalPublishButton) {
+      await safeInteraction(page, finalPublishButton, "hover", "Bouton final Publier maintenant");
+      await humanDelay(500, 1000);
+      finalPublishButton = await page.$('button.v-btn:has-text("Publier maintenant")');
+      if (finalPublishButton) {
+        await safeInteraction(page, finalPublishButton, "click", "Bouton final Publier maintenant");
+      }
+    }
   }
 
   await humanDelay(3000, 5000);
