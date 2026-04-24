@@ -308,22 +308,27 @@ async function configureYoutube(page: Page): Promise<void> {
 
   const tags = [...allTags].sort(() => Math.random() - 0.5).slice(0, 6);
   for (const tag of tags) {
-    // Laisser le temps à Vue.js de re-rendre le composant après le dernier tag
     await humanDelay(300, 600);
+    const tagsInput = page.locator('input[name="youtube_tags"]');
     
-    // On utilise un try/catch pour relancer l'action en cas de détachement soudain
     try {
-      await page.locator('input[name="youtube_tags"]').click({ timeout: 5000 });
-      await page.locator('input[name="youtube_tags"]').fill(tag);
-      await page.locator('input[name="youtube_tags"]').press("Enter");
+      await tagsInput.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+      await tagsInput.fill(tag, { timeout: 5000 });
+      await tagsInput.press("Enter", { timeout: 5000 });
+      logWithTimestamp(`✅ Tag ajouté: ${tag}`);
     } catch (e) {
       logWithTimestamp(`⚠️ Retentative pour le tag "${tag}"...`);
       await humanDelay(500, 1000);
-      await page.locator('input[name="youtube_tags"]').click({ timeout: 5000 });
-      await page.locator('input[name="youtube_tags"]').fill(tag);
-      await page.locator('input[name="youtube_tags"]').press("Enter");
+      try {
+        await tagsInput.scrollIntoViewIfNeeded({ timeout: 5000 }).catch(() => {});
+        await tagsInput.click({ timeout: 5000, force: true }).catch(() => {});
+        await tagsInput.fill(tag, { timeout: 5000 });
+        await tagsInput.press("Enter", { timeout: 5000 });
+        logWithTimestamp(`✅ Tag ajouté: ${tag}`);
+      } catch (err) {
+        logWithTimestamp(`❌ Impossible d'ajouter le tag "${tag}", on passe au suivant.`);
+      }
     }
-    logWithTimestamp(`✅ Tag ajouté: ${tag}`);
   }
   await takeScreenshot(page, "tags_added", "Tags ajoutés");
   logWithTimestamp("✅ Configuration YouTube terminée");
