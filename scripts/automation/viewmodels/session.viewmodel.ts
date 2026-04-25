@@ -10,11 +10,26 @@ import { retryNavigation } from "../services/browser.service";
 export async function isSessionValid(page: Page): Promise<boolean> {
   try {
     logWithTimestamp("🔍 Vérification de la validité de la session...");
+    const timeouts = getEnvironmentTimeouts();
 
     const currentUrl = page.url();
-    if (currentUrl.includes("/login") || currentUrl.includes("/auth")) {
+    logWithTimestamp(`📍 URL actuelle lors de la vérification: ${currentUrl}`);
+
+    if (currentUrl.includes("/login") || currentUrl.includes("/auth") || currentUrl === "about:blank") {
       logWithTimestamp("❌ Redirigé vers la page de connexion - session invalide");
       return false;
+    }
+
+    // Si on est sur la page planner ou une page de l'app, c'est bon signe
+    if (currentUrl.includes("/planner") || currentUrl.includes("app.metricool.com")) {
+      const pageTitle = await page.title().catch(() => "");
+      logWithTimestamp(`📄 Titre de la page: ${pageTitle}`);
+      
+      // Pas sur la page de login = session probablement valide
+      if (!pageTitle.toLowerCase().includes("login") && !pageTitle.toLowerCase().includes("sign in")) {
+        logWithTimestamp("✅ Session valide - page app.metricool.com accessible");
+        return true;
+      }
     }
 
     const loggedInIndicators = [
@@ -42,7 +57,7 @@ export async function isSessionValid(page: Page): Promise<boolean> {
       try {
         await page.waitForSelector(
           'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
-          { timeout: 5000 },
+          { timeout: timeouts.element },
         );
         logWithTimestamp("✅ Session valide - page planner chargée correctement");
         return true;
@@ -151,21 +166,83 @@ export async function ensureOnPlanningTab(page: Page): Promise<void> {
     while (!pageLoaded && attempts < maxAttempts) {
       attempts++;
       try {
-        await page.waitForSelector(
-          'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")',
-          { timeout: 15000 },
-        );
-        logWithTimestamp("✅ Page Planification chargée avec succès");
-        pageLoaded = true;
+        // Fermer tout modal résiduel avant de chercher le bouton
+        await page.evaluate(() => {
+          const closeButtons = Array.from(document.querySelectorAll("button"));
+          for (const btn of closeButtons) {
+            const icon = btn.querySelector("i.fa-xmark, i.fa-regular.fa-xmark, i.fa-times");
+            if (icon && (btn as HTMLElement).offsetParent !== null) {
+              const dialog = btn.closest('div[role="dialog"], .v-dialog, .modal, .v-overlay__content');
+              if (dialog) (btn as HTMLButtonElement).click();
+            }
+          }
+          // Fermer aussi les scrim overlay
+          const scrim = document.querySelector('.v-overlay__scrim') as HTMLElement | null;
+          if (scrim && scrim.offsetParent !== null) scrim.click();
+        }).catch(() => {});
+
+        await humanDelay(1500, 2500);
+
+        // Cherche le bouton via le sélecteur CSS d'abord
+        const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")';
+        
+        try {
+          await page.waitForSelector(selectorString, { timeout: timeouts.selector });
+          logWithTimestamp("✅ Page Planification chargée avec succès");
+          pageLoaded = true;
+          continue;
+        } catch {
+          // Fallback: recherche JS dans tout le DOM
+          logWithTimestamp("🔍 Fallback JS - recherche du bouton dans le DOM...");
+          const foundByJs = await page.evaluate(() => {
+            const buttons = Array.from(document.querySelectorAll("button"));
+            const keywords = ["create post", "créer une publication", "create", "créer", "publish"];
+            for (const btn of buttons) {
+              const label = (btn.getAttribute("aria-label") || btn.textContent || "").toLowerCase().trim();
+              if (keywords.some(k => label.includes(k)) && (btn as HTMLElement).offsetParent !== null) {
+                return true;
+              }
+            }
+            return false;
+          });
+
+          if (foundByJs) {
+            logWithTimestamp("✅ Page Planification chargée avec succès (via fallback JS)");
+            pageLoaded = true;
+            continue;
+          }
+
+          throw new Error("Bouton introuvable même via fallback JS");
+        }
       } catch (error) {
         logWithTimestamp(
           `⚠️ Tentative ${attempts}/${maxAttempts} - Bouton de création non trouvé: ${error}`,
         );
 
+        // Screenshot de débogage pour voir l'état de la page en CI
+        await takeScreenshot(page, `planner_attempt_${attempts}`, `État page planification - tentative ${attempts}`);
+
+        // Log de l'URL et du titre pour comprendre où on est
+        logWithTimestamp(`📍 URL actuelle: ${page.url()}`);
+        const pageTitle = await page.title().catch(() => "N/A");
+        logWithTimestamp(`📄 Titre de la page: ${pageTitle}`);
+
         if (attempts < maxAttempts) {
           logWithTimestamp("🔄 Rafraîchissement de la page...");
           await page.reload({ waitUntil: "domcontentloaded" });
-          await humanDelay(5000, 8000);
+          // Plus de temps en CI pour que l'app Vue.js se monte
+          await humanDelay(8000, 12000);
+
+          // Reconfigurer localStorage après reload
+          try {
+            await page.evaluate(() => {
+              const limitKeys = Object.keys(localStorage).filter(k => k.includes("free.limits.change.modal"));
+              for (const key of limitKeys) localStorage.setItem(key, "true");
+              localStorage.setItem("brand.5222086:free.limits.change.modal.showed.v1", "true");
+              localStorage.setItem("brand:free.limits.change.modal.showed.v1", "true");
+              localStorage.setItem("free.limits.change.modal.showed", "true");
+            });
+          } catch {}
 
           try {
             await page.waitForLoadState("networkidle", { timeout: timeouts.networkIdle });
@@ -177,6 +254,8 @@ export async function ensureOnPlanningTab(page: Page): Promise<void> {
     }
 
     if (!pageLoaded) {
+      await takeScreenshot(page, "planner_load_failed", "Échec chargement page planification");
+      logWithTimestamp(`📍 URL finale: ${page.url()}`);
       throw new Error("Impossible de charger la page Planification après plusieurs tentatives");
     }
 

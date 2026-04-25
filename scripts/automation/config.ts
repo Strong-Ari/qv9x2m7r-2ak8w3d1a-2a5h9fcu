@@ -41,10 +41,10 @@ export function isCIEnvironment(): boolean {
 export function getEnvironmentTimeouts() {
   const isCI = isCIEnvironment();
   return {
-    navigation: isCI ? 45000 : 30000,
-    networkIdle: isCI ? 30000 : 15000,
-    selector: isCI ? 20000 : 10000,
-    element: isCI ? 15000 : 8000,
+    navigation: isCI ? 60000 : 30000,
+    networkIdle: isCI ? 40000 : 15000,
+    selector: isCI ? 35000 : 10000,
+    element: isCI ? 20000 : 8000,
   };
 }
 

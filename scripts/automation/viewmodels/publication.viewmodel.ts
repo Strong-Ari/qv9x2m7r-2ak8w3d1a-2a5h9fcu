@@ -38,15 +38,45 @@ function generateYoutubeTitle(): string {
 async function configureTikTok(page: Page, videoLink: string): Promise<void> {
   logWithTimestamp("🎬 Configuration TikTok...");
 
-  // Clic bouton créer une publication
+  const timeouts = getEnvironmentTimeouts();
+
+  // Attendre que le bouton soit prêt via waitForSelector en premier
   logWithTimestamp('▶️ Recherche du bouton "Créer une publication"...');
+  const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")';
+  
+  try {
+    await page.waitForSelector(selectorString, { timeout: timeouts.selector });
+  } catch {
+    logWithTimestamp(`📍 URL au moment du timeout: ${page.url()}`);
+    await takeScreenshot(page, "waiting_create_button", "Attente bouton création");
+  }
+
   let createButton = await findCreatePublicationButton(page);
 
   if (!createButton) {
     await takeScreenshot(page, "create_button_not_found", "Bouton Créer une publication introuvable");
+    logWithTimestamp(`📍 URL avant reload: ${page.url()}`);
     logWithTimestamp("🔄 Rafraîchissement de la page...");
-    await page.reload({ waitUntil: "networkidle" });
-    await humanDelay(5000, 8000);
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await humanDelay(8000, 12000);
+    // Reconfigurer localStorage après reload
+    await page.evaluate(() => {
+      localStorage.setItem("brand.5222086:free.limits.change.modal.showed.v1", "true");
+      localStorage.setItem("brand:free.limits.change.modal.showed.v1", "true");
+      localStorage.setItem("free.limits.change.modal.showed", "true");
+    }).catch(() => {});
+    // Fermer modaux résiduels
+    await page.evaluate(() => {
+      const scrim = document.querySelector('.v-overlay__scrim') as HTMLElement | null;
+      if (scrim && scrim.offsetParent !== null) scrim.click();
+    }).catch(() => {});
+    await humanDelay(2000, 3000);
+    try {
+      await page.waitForSelector(selectorString, { timeout: timeouts.selector });
+    } catch {
+      logWithTimestamp(`📍 URL après reload: ${page.url()}`);
+      await takeScreenshot(page, "create_button_not_found_after_reload", "Bouton toujours introuvable après reload");
+    }
     createButton = await findCreatePublicationButton(page);
     if (!createButton) throw new Error('Bouton "Créer une publication" introuvable même après rafraîchissement');
   }

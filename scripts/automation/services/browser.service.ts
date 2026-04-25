@@ -63,8 +63,11 @@ export async function launchBrowser(): Promise<Browser> {
 // ─── Création du contexte ──────────────────────────────────────────────────────
 
 export async function createBrowserContext(browser: Browser): Promise<BrowserContext> {
+  const isCI = isCIEnvironment();
   const context = await browser.newContext({
-    viewport: { width: 1366, height: 768 },
+    // En CI, utiliser une résolution desktop complète pour éviter que Metricool
+    // ne bascule en layout mobile/hamburger qui cache le bouton "Create post"
+    viewport: isCI ? { width: 1920, height: 1080 } : { width: 1366, height: 768 },
     userAgent:
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     locale: "fr-FR",
