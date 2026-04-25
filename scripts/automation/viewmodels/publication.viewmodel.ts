@@ -298,21 +298,25 @@ async function configureYoutube(page: Page): Promise<void> {
   await takeScreenshot(page, "description_filled", "Description remplie");
 
   // Préréglages YouTube
-  await page
-    .locator(
-      ".v-card.v-card--flat.v-theme--black-and-white.v-card--density-default.v-card--variant-elevated.flex",
-    )
-    .first()
-    .click();
-  await humanDelay(500, 1000);
+  const youtubePresetsCard = page.locator(
+    ".v-card.v-card--flat.v-theme--black-and-white.v-card--density-default.v-card--variant-elevated.flex"
+  ).first();
+  
+  await safeInteraction(page, youtubePresetsCard, "click", "Préréglages YouTube");
+  await humanDelay(1000, 2000);
   await page.evaluate(() => window.scrollBy(0, 500));
   await humanDelay(500, 1000);
-  await page.evaluate(() => window.scrollBy(0, 500));
 
   // Titre
   const videoTitle = generateYoutubeTitle();
-  await page.locator('input[name="youtube_title"]').click();
-  await page.locator('input[name="youtube_title"]').fill(videoTitle);
+  const titleInputSelector = 'input[name="youtube_title"]';
+  
+  logWithTimestamp("⏳ Attente du champ titre YouTube...");
+  await page.waitForSelector(titleInputSelector, { timeout: 20000 });
+  const titleInput = page.locator(titleInputSelector);
+  
+  await safeInteraction(page, titleInput, "click", "Champ titre YouTube");
+  await titleInput.fill(videoTitle);
   await takeScreenshot(page, "title_filled", "Titre rempli");
   logWithTimestamp(`✅ Titre généré et saisi: "${videoTitle}"`);
 
@@ -533,25 +537,10 @@ async function verifyPublicationSuccess(page: Page): Promise<void> {
 
 // ─── Point d'entrée du ViewModel ──────────────────────────────────────────────
 
-export async function automatePublication(page: Page, videoLink: string, isRetry = false): Promise<void> {
+export async function automatePublication(page: Page, videoLink: string): Promise<void> {
   try {
-    logWithTimestamp(`🚀 Début du processus d'automatisation${isRetry ? " (retry)" : ""} avec anti-détection...`);
+    logWithTimestamp(`🚀 Début du processus d'automatisation avec anti-détection...`);
 
-    // En mode retry, re-stabiliser la page avant de commencer
-    if (isRetry) {
-      logWithTimestamp("🔧 Stabilisation de la page avant retry...");
-      await ensureOnPlanningTab(page);
-      // Fermer tout modal ou toast résiduel
-      await closeToastIfVisible(page);
-      try {
-        const scrim = await page.$(".v-overlay__scrim");
-        if (scrim && (await scrim.isVisible())) {
-          await scrim.click({ force: true });
-          await humanDelay(500, 1000);
-        }
-      } catch {}
-      await humanDelay(3000, 5000);
-    }
 
     await takeScreenshot(page, "start", "Début du processus");
 

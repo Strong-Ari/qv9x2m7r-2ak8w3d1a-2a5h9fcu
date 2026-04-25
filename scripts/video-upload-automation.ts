@@ -66,18 +66,9 @@ async function run(): Promise<void> {
       await ensureOnPlanningTab(page);
     }
 
-    // Automatisation avec retry
-    try {
-      await automatePublication(page, videoLink);
-      logWithTimestamp("✨ Script terminé avec succès !");
-    } catch (error) {
-      logWithTimestamp(`⚠️ Erreur lors de l'automatisation: ${error}`);
-      logWithTimestamp("🔄 Tentative de retry en naviguant vers PLANNER_URL...");
-      await retryNavigation(page, PLANNER_URL);
-      await humanDelay(3000, 5000);
-      await automatePublication(page, videoLink, true); // isRetry=true → stabilisation avant tentative
-      logWithTimestamp("✨ Script terminé avec succès après retry !");
-    }
+    // Automatisation (sans retry)
+    await automatePublication(page, videoLink);
+    logWithTimestamp("✨ Script terminé avec succès !");
 
     await humanDelay(3000, 5000);
   } catch (error) {
