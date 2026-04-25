@@ -2,10 +2,10 @@ import type { BrowserContext } from "playwright";
 import { existsSync } from "fs";
 import { promises as fs } from "fs";
 import crypto from "crypto";
-import { COOKIES_PATH, COOKIES_META_PATH } from "../config";
+import { COOKIES_PATH, COOKIES_META_PATH, isCIEnvironment } from "../config";
 import { logWithTimestamp } from "../utils";
 
-// ─── Hash ──────────────────────────────────────────────────────────────────────
+// ─── Hash ───────────────────────────────────────────────────────────
 
 export function getLoginHash(email: string, password: string): string {
   return crypto
@@ -15,7 +15,7 @@ export function getLoginHash(email: string, password: string): string {
     .slice(0, 8);
 }
 
-// ─── Sauvegarde ────────────────────────────────────────────────────────────────
+// ─── Sauvegarde ─────────────────────────────────────────────────────────
 
 export async function saveCookies(
   context: BrowserContext,
@@ -40,13 +40,28 @@ export async function saveCookies(
   }
 }
 
-// ─── Chargement ────────────────────────────────────────────────────────────────
+// ─── Chargement ─────────────────────────────────────────────────────────
 
 export async function loadCookies(
   context: BrowserContext,
   expectedLoginHash: string,
 ): Promise<boolean> {
   try {
+    const isCI = isCIEnvironment();
+
+    // 🤖 En environnement CI (GitHub Actions), MetriCool rejette les sessions
+    // des runners GHA. On force une authentification fraîche pour éviter
+    // la redirection boucle login → /planner → login
+    if (isCI) {
+      logWithTimestamp(
+        "🤖 Environnement CI détecté - Cookies ignorés pour forcer une authentification fraîche",
+      );
+      logWithTimestamp(
+        "   Raison: MetriCool détecte les IP GHA et rejette les sessions mises en cache",
+      );
+      return false;
+    }
+
     logWithTimestamp("🔍 Recherche du fichier de cookies...");
     if (!existsSync(COOKIES_PATH)) {
       logWithTimestamp("⚠️ Aucun fichier de cookies trouvé");
