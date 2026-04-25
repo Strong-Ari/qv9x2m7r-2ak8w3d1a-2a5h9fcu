@@ -42,7 +42,7 @@ async function configureTikTok(page: Page, videoLink: string): Promise<void> {
 
   // Attendre que le bouton soit prêt via waitForSelector en premier
   logWithTimestamp('▶️ Recherche du bouton "Créer une publication"...');
-  const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Créer")';
+  const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Cré');
   
   try {
     await page.waitForSelector(selectorString, { timeout: timeouts.selector });
@@ -293,8 +293,7 @@ async function configureYoutube(page: Page): Promise<void> {
   await page.locator(".placeholder").click();
   await humanDelay(500, 1000);
   await page.locator(".placeholder").fill(
-    "Dans Classroom of the Elite, Ayanokoji nous rappelle que derrière chaque sourire se cache une stratégie, et que les plus grandes trahisons viennent rarement des ennemis.\n\n👉 Abonne-toi pour plus de citations marquantes et moments forts de CoTE !\n#ayanokoji #classroomoftheelite #anime",
-  );
+    "Dans Classroom of the Elite, Ayanokoji nous rappelle que derrière chaque sourire se cache une stratégie, et que les plus grandes trahisons viennent rarement des ennemis.\n\n👉 Abonne-toi");
   await takeScreenshot(page, "description_filled", "Description remplie");
 
   // Préréglages YouTube
@@ -319,7 +318,7 @@ async function configureYoutube(page: Page): Promise<void> {
   // Paramètres additionnels
   await page
     .locator(
-      ".v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field > .v-field__input",
+      ".v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field",
     )
     .first()
     .click();
@@ -366,7 +365,7 @@ async function configureYoutube(page: Page): Promise<void> {
   logWithTimestamp("✅ Configuration YouTube terminée");
 }
 
-// ─── Publication ───────────────────────────────────────────────────────────────
+// ─── Publication ────────────────────────────────────────────────────────────────
 
 async function publish(page: Page): Promise<void> {
   logWithTimestamp("📤 Publication...");
@@ -483,14 +482,15 @@ async function publish(page: Page): Promise<void> {
 }
 
 // ─── Vérification du succès ────────────────────────────────────────────────────
+// ✅ FIX: N'utilise PLUS page.goto() — reste sur la page actuelle pour éviter les redirections!
 
 async function verifyPublicationSuccess(page: Page): Promise<void> {
   logWithTimestamp("⏳ Vérification du succès de la publication...");
   await humanDelay(2000, 3000);
 
-  // Vérifier les publications restantes et rafraîchir le secret si nécessaire
+  // ✅ Cherche le compteur de publications SUR LA PAGE ACTUELLE (pas de redirection vers /planner)
   try {
-    await page.goto("https://app.metricool.com/planner", { waitUntil: "networkidle" });
+    logWithTimestamp("📊 Recherche du compteur de publications...");
     const publishCountElement = await page.getByText(/\d+ de vos 50/);
     const text = await publishCountElement.textContent();
     const match = text?.match(/(\d+) de vos 50/);
@@ -509,10 +509,10 @@ async function verifyPublicationSuccess(page: Page): Promise<void> {
       }
     }
   } catch (error) {
-    logWithTimestamp(`⚠️ Erreur lors de la récupération des publications restantes: ${error}`);
+    logWithTimestamp(`⚠️ Compteur de publications non trouvé sur la page actuelle (non bloquant)`);
   }
 
-  // Toast de succès
+  // ✅ Toast de succès — cherche SUR LA PAGE ACTUELLE
   try {
     await page.waitForFunction(
       () => {
@@ -526,7 +526,7 @@ async function verifyPublicationSuccess(page: Page): Promise<void> {
     logWithTimestamp("✅ Publication réussie, toast de validation détecté.");
     await takeScreenshot(page, "toast_success_found", "Toast de succès détecté");
   } catch (e) {
-    logWithTimestamp(`⚠️ Toast de succès non détecté: ${e}`);
+    logWithTimestamp(`⚠️ Toast de succès non détecté (non bloquant): ${e}`);
     await takeScreenshot(page, "toast_success_not_found", "Toast de succès non détecté");
   }
 }
