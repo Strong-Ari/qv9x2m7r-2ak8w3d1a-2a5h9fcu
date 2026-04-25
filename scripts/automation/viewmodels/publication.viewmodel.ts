@@ -42,7 +42,7 @@ async function configureTikTok(page: Page, videoLink: string): Promise<void> {
 
   // Attendre que le bouton soit prêt via waitForSelector en premier
   logWithTimestamp('▶️ Recherche du bouton "Créer une publication"...');
-  const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create"), button:has-text("Cré');
+  const selectorString = 'button[aria-label="Create post"], button[aria-label="Créer une publication"], button:has-text("Créer une publication"), button:has-text("Create")';
   
   try {
     await page.waitForSelector(selectorString, { timeout: timeouts.selector });
@@ -293,7 +293,8 @@ async function configureYoutube(page: Page): Promise<void> {
   await page.locator(".placeholder").click();
   await humanDelay(500, 1000);
   await page.locator(".placeholder").fill(
-    "Dans Classroom of the Elite, Ayanokoji nous rappelle que derrière chaque sourire se cache une stratégie, et que les plus grandes trahisons viennent rarement des ennemis.\n\n👉 Abonne-toi");
+    "Dans Classroom of the Elite, Ayanokoji nous rappelle que derrière chaque sourire se cache une stratégie, et que les plus grandes trahisons viennent rarement des ennemis.\n\n👉 Abonne-toi pour plus de citations inspirantes !"
+  );
   await takeScreenshot(page, "description_filled", "Description remplie");
 
   // Préréglages YouTube
@@ -318,7 +319,7 @@ async function configureYoutube(page: Page): Promise<void> {
   // Paramètres additionnels
   await page
     .locator(
-      ".v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field",
+      ".v-input.v-input--horizontal.v-input--center-affix.v-input--density-compact.v-theme--black-and-white.v-locale--is-ltr.v-text-field.v-select > .v-input__control > .v-field > .v-field__field > .v-field__input"
     )
     .first()
     .click();
@@ -365,7 +366,7 @@ async function configureYoutube(page: Page): Promise<void> {
   logWithTimestamp("✅ Configuration YouTube terminée");
 }
 
-// ─── Publication ────────────────────────────────────────────────────────────────
+// ─── Publication ────────────────────────────────────────────────────────
 
 async function publish(page: Page): Promise<void> {
   logWithTimestamp("📤 Publication...");
