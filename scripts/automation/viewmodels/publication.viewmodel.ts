@@ -298,12 +298,36 @@ async function configureYoutube(page: Page): Promise<void> {
   await takeScreenshot(page, "description_filled", "Description remplie");
 
   // Préréglages YouTube
-  const youtubePresetsCard = page.locator(
-    ".v-card.v-card--flat.v-theme--black-and-white.v-card--density-default.v-card--variant-elevated.flex"
-  ).first();
+  logWithTimestamp("▶️ Vérification du panneau 'YouTube presets'...");
+  let isTitleVisible = await page.locator('input[name="youtube_title"]').isVisible().catch(() => false);
   
-  await safeInteraction(page, youtubePresetsCard, "click", "Préréglages YouTube");
-  await humanDelay(1000, 2000);
+  if (!isTitleVisible) {
+    try {
+      let clicked = false;
+      const buttons = await page.$$('button.v-expansion-panel-title');
+      for (const btn of buttons) {
+        const text = await btn.textContent();
+        if (text && text.toLowerCase().includes("youtube")) {
+          await safeInteraction(page, btn, "click", "Préréglages YouTube");
+          clicked = true;
+          break;
+        }
+      }
+      
+      if (!clicked) {
+        const youtubePresetsCard = page.locator(
+          ".v-card.v-card--flat.v-theme--black-and-white.v-card--density-default.v-card--variant-elevated.flex"
+        ).first();
+        await safeInteraction(page, youtubePresetsCard, "click", "Préréglages YouTube (fallback)");
+      }
+    } catch (e) {
+      logWithTimestamp(`⚠️ Erreur lors de l'ouverture du panneau YouTube: ${e}`);
+    }
+    await humanDelay(1500, 2500);
+  } else {
+    logWithTimestamp("✅ Panneau YouTube presets déjà ouvert");
+  }
+  
   await page.evaluate(() => window.scrollBy(0, 500));
   await humanDelay(500, 1000);
 
