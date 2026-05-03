@@ -2,11 +2,19 @@ import { spawnSync, spawn } from "child_process";
 import cliProgress from "cli-progress";
 import readline from "readline";
 
+// Arguments
+const args = process.argv.slice(2);
+const useIntroAyano = args.includes("--intro-ayano") || !!process.env.npm_config_intro_ayano;
+
 // Fichiers
 const inputVideo = "output.mp4";
 const scratchesVideo = "public/scratches.mp4";
-const whooshAudio = "public/whoosh.mp3";
 const outputVideo = "output_video.mp4";
+
+// Sons
+const whooshAudio = "public/whoosh.mp3";
+const riserAudio = "public/riser.wav";
+const cameraShutterAudio = "public/camera-shutter.mp3";
 
 // 1️⃣ Récupérer la durée de la vidéo en secondes
 const ffprobe = spawnSync("ffprobe", [
@@ -19,45 +27,55 @@ const ffprobe = spawnSync("ffprobe", [
 const duration = parseFloat(ffprobe.stdout.toString());
 console.log(`Durée totale vidéo: ${duration.toFixed(2)}s`);
 
-// 2️⃣ Lancer FFmpeg avec filtres corrigés
-const ffmpegArgs = [
+// 2️⃣ Préparer les arguments FFmpeg
+const inputs = [
   "-i", inputVideo,
   "-i", scratchesVideo,
-  "-i", whooshAudio,
-  "-filter_complex",
-  // 🔧 CORRECTIONS APPLIQUÉES :
-  // - Suppression de tblend (causait le filtre rouge)
-  // - Réduction du blur pour préserver la netteté
-  // - Amélioration des paramètres de zoom
-  `[0:v]split[v1][v2];` +
-  // Première seconde avec effet zoom
-  `[v1]trim=start=0:end=1,setpts=PTS-STARTPTS,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
-  // Reste de la vidéo sans modification de durée
-  `[v2]trim=start=1:end=${duration},setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
-  `[firstsec][rest]concat=n=2:v=1:a=0[vout_base];` +
-  `[1:v]scale=1080:1920,trim=0:${duration}[scratch_scaled];` +
-  // 🔧 Réduction de l'opacité des scratches pour un effet plus subtil
-  `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
-  `[2:a]atrim=0:1,afade=t=in:st=0:d=0.2[aout]`,
+];
+
+if (useIntroAyano) {
+  inputs.push("-i", riserAudio, "-i", cameraShutterAudio);
+} else {
+  inputs.push("-i", whooshAudio);
+}
+
+const filterComplex = useIntroAyano
+  ? `[0:v]split[v1][v2];` +
+    `[v1]trim=start=0:end=1,setpts=PTS-STARTPTS,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
+    `[v2]trim=start=1:end=${duration},setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
+    `[firstsec][rest]concat=n=2:v=1:a=0[vout_base];` +
+    `[1:v]scale=1080:1920,trim=0:${duration}[scratch_scaled];` +
+    `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout_blended];` +
+    `[vout_blended]vignette[vout];` +
+    `[2:a]volume=2.8,afade=t=in:st=0:d=0.2[aout_riser];` +
+    `[3:a]adelay=3500|3500[aout_shutter];` +
+    `[aout_riser][aout_shutter]amix=inputs=2[aout]`
+  : `[0:v]split[v1][v2];` +
+    `[v1]trim=start=0:end=1,setpts=PTS-STARTPTS,scale=1080:1920,zoompan=z='1.5-0.025*on':x='iw/2-(iw/zoom/2)+sin(on*1.5)*40':y='ih/2-(ih/zoom/2)+cos(on*1.5)*40':d=1:s=1080x1920:fps=50,dblur=angle=90:radius=1,format=yuv420p[firstsec];` +
+    `[v2]trim=start=1:end=${duration},setpts=PTS-STARTPTS,scale=1080:1920,format=yuv420p[rest];` +
+    `[firstsec][rest]concat=n=2:v=1:a=0[vout_base];` +
+    `[1:v]scale=1080:1920,trim=0:${duration}[scratch_scaled];` +
+    `[vout_base][scratch_scaled]blend=all_mode=overlay:all_opacity=0.3[vout];` +
+    `[2:a]atrim=0:1,afade=t=in:st=0:d=0.2[aout]`;
+
+const ffmpegArgs = [
+  ...inputs,
+  "-filter_complex", filterComplex,
   "-map", "[vout]",
-
-
-
   "-map", "[aout]",
   "-c:v", "libx264",
-  // 🔧 AMÉLIORATION DE LA QUALITÉ MAXIMALE :
-  "-preset", "veryslow",      // Qualité maximale
-  "-crf", "12",               // Qualité très élevée (compatible avec concat)
+  "-preset", "veryslow",
+  "-crf", "12",
   "-pix_fmt", "yuv420p",
   "-profile:v", "high",
   "-level", "4.2",
-  "-maxrate", "12000k",       // Bitrate élevé pour préserver la qualité
+  "-maxrate", "12000k",
   "-bufsize", "24000k",
-  "-me_method", "umh",        // Meilleure estimation de mouvement
-  "-subq", "10",              // Qualité sous-pixel maximale
-  "-trellis", "2",            // Optimisation quantification
+  "-me_method", "umh",
+  "-subq", "10",
+  "-trellis", "2",
   "-c:a", "aac",
-  "-b:a", "320k",             // Bitrate audio maximal
+  "-b:a", "320k",
   "-y",
   outputVideo
 ];

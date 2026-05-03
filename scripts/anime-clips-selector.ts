@@ -66,52 +66,71 @@ async function main() {
 
   const data: CloudinaryResponse = await response.json();
 
-  // Filtrer uniquement le dossier tiktok-anime
-  const availableClips = data.resources.filter((r) => r.asset_folder === "tiktok-anime" && !r.public_id.startsWith('intro-ayano'));
+  const args = process.argv.slice(2);
+  console.log(`🔢 Arguments reçus dans selector : ${args.length > 0 ? args.join(", ") : "aucun"}`);
 
-
-
-
-
-
-
-
-
-
-
-
-
-  if (availableClips.length === 0) {
-    console.error("❌ Aucun clip trouvé dans le dossier tiktok-anime");
-    process.exit(1);
+  let introPrefix: string | null = null;
+  const introArg = args.find(a => a.startsWith("--intro-"));
+  
+  if (introArg) {
+    introPrefix = introArg.replace("--", "");
+  } else if (process.env.npm_config_intro_ayano) {
+    introPrefix = "intro-ayano";
+  } else if (process.env.npm_config_intro_default) {
+    introPrefix = "intro-default";
   }
 
-  console.log(`📺 ${availableClips.length} clips disponibles`);
+  // Le public ID exact pour intro-ayano
+  if (introPrefix === "intro-ayano") {
+    introPrefix = "intro-ayano_t4vq4s";
+  }
 
-  const selectedClips: SelectedClip[] = [];
+  // Filtrer uniquement le dossier tiktok-anime
+  const availableClipsAll = data.resources.filter((r) => r.asset_folder === "tiktok-anime");
+  console.log(`🗂️ ${availableClipsAll.length} clips trouvés dans le dossier tiktok-anime`);
+
+  // Filtrer les clips pour la sélection aléatoire (exclure les intros)
+  const availableClips = availableClipsAll.filter((r) => !r.public_id.includes('intro-'));
+
+  let selectedClips: SelectedClip[] = [];
   let totalDuration = 0;
   const usedClipIds = new Set<string>();
 
+  if (introPrefix) {
+    console.log(`🎬 Recherche de l'intro avec le préfixe : ${introPrefix}`);
+    const introClip = data.resources.find((clip) => clip.public_id.includes(introPrefix));
+    
+    if (introClip) {
+      console.log(`✅ Intro trouvée : ${introClip.public_id}`);
+      
+      let introDuration = introClip.media_metadata?.duration;
+      if (!introDuration) {
+        try {
+          console.warn(`⚠️ Duration manquante pour ${introClip.public_id}, fallback avec get-video-duration`);
+          introDuration = await getVideoDurationInSeconds(introClip.secure_url);
+        } catch (err) {
+          console.error(`❌ Impossible de récupérer la durée pour ${introClip.public_id}:`, err);
+          process.exit(1);
+        }
+      }
 
+      selectedClips.push({
+        url: introClip.secure_url,
+        duration: introDuration,
+        public_id: introClip.public_id,
+      });
+      totalDuration += introDuration;
+      usedClipIds.add(introClip.public_id);
+      console.log(`✅ Clip d'intro ajouté : ${introClip.public_id} (${introDuration.toFixed(2)}s)`);
+    } else {
+      console.warn(`⚠️ Aucune intro trouvée commençant par "${introPrefix}" dans le dossier tiktok-anime`);
+      console.log("Liste des public_ids disponibles :");
+      availableClipsAll.forEach(c => console.log(`  - ${c.public_id}`));
+      process.exit(1);
+    }
+  }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  console.log(`📺 ${availableClips.length} clips disponibles pour la sélection aléatoire`);
   console.log("🎯 Sélection des clips...");
   while (totalDuration < targetDuration) {
     const unusedClips = availableClips.filter((clip) => !usedClipIds.has(clip.public_id));
