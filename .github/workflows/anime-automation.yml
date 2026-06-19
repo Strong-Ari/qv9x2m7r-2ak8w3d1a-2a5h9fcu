@@ -2,10 +2,9 @@ name: Automatisation Anime
 
 on:
   schedule:
-    # - cron: "43 4 * * *"   # pour un post à 08h00 FR
-    # - cron: "13 15 * * *"  # pour un post à 18h30 FR
+    - cron: "43 4 * * *" # pour un post à 08h00 FR
+    - cron: "13 15 * * *" # pour un post à 18h30 FR
   workflow_dispatch:
-
 
 jobs:
   anime-automation:
@@ -62,7 +61,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: 'npm'
+          cache: "npm"
 
       - name: 📦 Installation des dépendances (avec legacy-peer-deps)
         run: npm ci --legacy-peer-deps
@@ -156,7 +155,6 @@ jobs:
           echo "LOGIN_HASH=$loginHash" >> $env:GITHUB_ENV
         shell: pwsh
 
-
       - name: 💾 Restaurer le cookie Playwright
         uses: actions/cache@v4
         id: cookie-cache
@@ -165,7 +163,6 @@ jobs:
             cookies.json
             cookies.meta.json
           key: playwright-cookie-${{ runner.os }}-${{ env.LOGIN_HASH }}
-
 
       - name: 💾 Cache des navigateurs Playwright (Windows)
         uses: actions/cache@v4
@@ -177,7 +174,6 @@ jobs:
       - name: 🌐 Installer les navigateurs Playwright
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npm exec playwright install --with-deps
-
 
       # === Téléchargement depuis releases privées avec GitHub API ===
       - name: 🔑 Récupérer les URLs des releases privées
@@ -513,4 +509,3 @@ jobs:
         with:
           path: C:\Users\runneradmin\.cache\ms-playwright
           key: playwright-${{ runner.os }}
-
