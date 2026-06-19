@@ -85,10 +85,46 @@ jobs:
         if: steps.cache-ffmpeg.outputs.cache-hit != 'true'
         run: |
           Write-Host "🔽 Téléchargement de FFmpeg 7.1.1 essentials..."
-          curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-7.1.1-essentials_build.7z
+          
+          $maxRetries = 3
+          $retryCount = 0
+          $downloaded = $false
+          
+          while ($retryCount -lt $maxRetries -and -not $downloaded) {
+            $retryCount++
+            Write-Host "Tentative $retryCount/$maxRetries..."
+            
+            try {
+              curl -L -o ffmpeg.7z https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-7.1.1-essentials_build.7z
+              
+              # Vérifier que le fichier n'est pas vide
+              $fileSize = (Get-Item ffmpeg.7z -ErrorAction SilentlyContinue).Length
+              if ($fileSize -gt 100MB) {
+                Write-Host "✅ Fichier téléchargé avec succès ($([math]::Round($fileSize/1MB, 2)) MB)"
+                $downloaded = $true
+              } else {
+                Write-Host "❌ Fichier corrompu ou incomplet ($fileSize bytes)"
+                Remove-Item ffmpeg.7z -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 5
+              }
+            } catch {
+              Write-Host "❌ Erreur téléchargement: $_"
+              Start-Sleep -Seconds 5
+            }
+          }
+          
+          if (-not $downloaded) {
+            Write-Host "❌ Impossible de télécharger FFmpeg après $maxRetries tentatives"
+            exit 1
+          }
 
           Write-Host "📂 Extraction..."
           7z x ffmpeg.7z -o"$env:RUNNER_TEMP\ffmpeg" -y
+          
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Extraction failed"
+            exit 1
+          }
 
           Write-Host "➕ Ajout de FFmpeg au PATH"
           echo "$env:RUNNER_TEMP\ffmpeg\ffmpeg-7.1.1-essentials_build\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
