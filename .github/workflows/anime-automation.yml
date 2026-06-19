@@ -99,7 +99,7 @@ jobs:
               
               # Vérifier que le fichier n'est pas vide
               $fileSize = (Get-Item ffmpeg.7z -ErrorAction SilentlyContinue).Length
-              if ($fileSize -gt 100MB) {
+              if ($fileSize -gt 20MB) {
                 Write-Host "✅ Fichier téléchargé avec succès ($([math]::Round($fileSize/1MB, 2)) MB)"
                 $downloaded = $true
               } else {
