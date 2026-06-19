@@ -426,52 +426,9 @@ jobs:
             Write-Host "   Continuons sans ce fichier..."
           }
 
-      # === Pipeline vidéo ===
-      - name: 🎵 Étape 1 - Téléchargement voix aléatoire
-        run: npm run start
-
-      - name: 🎬 Étape 2 - Sélection des clips anime
-        run: npm run select-clips
-
-      - name: 🔗 Étape 3 - Concaténation clips avec transitions
-        run: npm run concat-clips
-
-      - name: ✨ Étape 4 - Application effets TikTok
-        run: npm run ffmpeg-tiktok-effects
-
-      - name: 🎵 Étape 5 - Téléchargement OST aléatoire
-        run: npm run download-random-ost
-
-      - name: 📝 Étape 6 - Génération des sous-titres
-        run: npm run generate-subs
-
-      - name: 🧹 Étape 7 - Nettoyage des sous-titres
-        run: npm run clean-subs
-
-      - name: ✍️ Étape 8 - Génération drawtext
-        run: npm run generate-drawtext
-
-      - name: 📖 Étape 9 - Ajout des sous-titres
-        run: npm run add-subtitles
-
-      - name: 🔊 Étape 10 - Mixage audio
-        run: npm run mix-audio
-
-      - name: 🤖 Étape 11 - Analyse contexte pour emojis
-        run: npm run contextual-emoji
-
-      - name: ⬇️ Étape 12 - Télécharger emojis animés
-        run: npm run download-animated-emojis
-
-      - name: 😃 Étape 13 - Appliquer emojis animés sur la vidéo
-        run: npm run apply-emoji-ffmpeg
-
-      # === Upload & publication ===
-      - name: ☁️ Upload Cloudinary
-        run: npm run upload-to-cloudinary
-
-      - name: 📱 Publication TikTok
-        run: npm run put-to-tiktok
+      # === Pipeline complet ===
+      - name: 🚀 Exécuter le processus complet
+        run: npm run full-process -- --intro-ayano
         env:
           CHROMIUM_FLAGS: "--no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-web-security --disable-features=VizDisplayCompositor"
 
